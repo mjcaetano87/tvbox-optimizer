@@ -1,103 +1,91 @@
-# TVBOX Optimizer for IPTV 🚀
+# 🇧🇷 TVBOX Optimizer para IPTV | 🇺🇸 TVBOX Optimizer for IPTV
 
-**TVBOX Optimizer** is an open-source performance tuner and debloater designed specifically for **Android TV, TV Boxes (Allwinner, Rockchip, Amlogic), and Fire TV Stick** devices. It prepares devices for smooth, lag-free IPTV streaming (TiviMate, XCIPTV, IPTV Smarters Pro, OTT Navigator, etc.) by eliminating background resource hogs, optimizing network routes, and securing system privacy.
-
-Available both as a standalone **Android Application (APK)** and as an **ADB automation script**.
-
----
-
-## ⚡ Key Highlights (v2.1)
-
-### 1. Quadruple DNS Anti-Censorship Matrix
-Configures all 4 native Android DNS resolution slots to bypass local ISP throttling, route hijacking, and DNS poisoning without false positives:
-* **`DNS 1` (`1.1.1.1`)**: Cloudflare Anycast — ultra-low latency.
-* **`DNS 2` (`9.9.9.10`)**: **Quad9 Unfiltered** — Swiss privacy foundation, zero domain filtering, strict DNSSEC, and immunity to regional blocks.
-* **`DNS 3` (`8.8.8.8`)**: Google Public DNS — global reliability and routing stability.
-* **`DNS 4` (`1.0.0.1`)**: Cloudflare Secondary — instant fallback redundancy.
-
-### 2. Chinese Firmware Dropper & Spyware Purge
-Based on the **[Universal Android Debloater Next Generation (UAD-NG)](https://github.com/Universal-Debloater-Alliance/universal-android-debloater-next-generation)** database:
-* Purgers silent background APK droppers and firmware adwares commonly found in cheap generic TV Boxes (`com.adups.fota`, `com.android.ad.daemon`, `com.rockchip.adservice`, `com.allwinner.service`, etc.).
-* Disables heavy Google background services (`Google Play Services`, `Play Store`, `Google Services Framework`, `SetupWizard`, `TTS`).
-* Disables unused stock browsers and competing heavy streaming apps.
-
-### 3. IPTV Hardware & Network Tuning
-* **Hardware Video Acceleration**: Forces direct GPU composition (`debug.sf.hw = 1` and `video.accelerate.hw = 1`) to eliminate dropped frames on 4K/FHD 60fps streams.
-* **TCP Network Streaming Buffers**: Expands WiFi and Ethernet socket receive/transmit window buffers to reduce stream buffering and stutter.
-
-### 4. Developer Settings & Extreme RAM Freeing
-* Window, Transition, and Animator scales set to **`0x` (Disabled)** for instant UI response.
-* **Always Finish Activities** enabled (`always_finish_activities = 1`) to free RAM immediately whenever an activity leaves the screen.
-* **Background Process Limit** set to **`0`** (No background processes).
-
-### 5. Brazil NTP & Clock Synchronization
-* Synchronizes device clock with official Brazilian servers (`pool.ntp.br`, `a.st1.ntp.br`) and timezone `America/Sao_Paulo` (GMT-3) to ensure EPG guides and SSL/TLS certificates never fail.
-
-### 6. Terminal-Style UI
-* Sleek retro-terminal layout: Black background (`#000000`) with Neon Green (`#39FF14`) monospace typography.
-* Real-time auto-scrolling log console.
-* Interactive dialog on completion: *"FINISHED - Would you like to restart now?"*.
+> **Desenvolvido por / Developed by:** `jesséx10`  
+> **Repositório Oficial / Official Repo:** [https://github.com/mjcaetano87/tvbox-optimizer](https://github.com/mjcaetano87/tvbox-optimizer)  
+> **Download APK Direto / Direct APK:** [`TVBOX_Optimizer_IPTV.apk`](./TVBOX_Optimizer_IPTV.apk)
 
 ---
 
-## 📁 Repository Structure
+## 🇧🇷 PORTUGUÊS
 
-```
-├── TVBOX_Optimizer_IPTV.apk   # Pre-compiled ready-to-install Android APK
-├── README.md                  # English documentation & build guide
-├── README_PT.md               # Documentação em Português
-├── SKILL.md                   # AI Agent Skill manifest
-├── scripts/
-│   ├── optimize_tvbox.ps1     # ADB remote automation script
-│   └── build_apk.ps1          # Standalone APK compilation script
-├── app-source/                # Complete native Android Java source code
-│   ├── AndroidManifest.xml
-│   ├── res/
-│   └── src/
-└── references/
-    └── commands.md            # Quick ADB reference cheatsheet
-```
+O **TVBOX Optimizer** é uma ferramenta de código aberto e debloater profissional desenvolvido especialmente para **Android TV, TV Boxes (chips Allwinner, Rockchip e Amlogic) e Fire TV Stick**. 
+
+O objetivo do projeto é transformar qualquer TV Box em uma máquina veloz, limpa e dedicada para reprodução de IPTV (TiviMate, XCIPTV, IPTV Smarters Pro, OTT Navigator, etc.), removendo processos espiões, otimizando o buffer de vídeo e garantindo que os canais abram sem travamentos ou bloqueios de operadoras.
+
+### ⚠️ AVISO IMPORTANTE:
+> **Antes de executar o aplicativo na sua TV Box, certifique-se de que o MODO DESENVOLVEDOR (e a DEPURACAO USB) esteja ATIVO nas configurações do aparelho!**  
+> *(Vá em Configurações > Sobre > Clique 7 vezes em 'Número da Versão' até liberar o menu Opções do Desenvolvedor).*
+
+### 🚀 Principais Recursos:
+1. **Controle Remoto (DPAD 100% Funcional):**
+   - Os botões `[ OTIMIZAR ]` e `[ REINICIAR ]` possuem realce visual de foco (borda Neon), permitindo navegar suavemente usando as setas do controle remoto da TV Box.
+2. **Matriz Quádrupla de DNS Anti-Bloqueio:**
+   - **`DNS 1 (1.1.1.1)`**: Cloudflare Anycast (menor latência do Brasil).
+   - **`DNS 2 (9.9.9.10)`**: **Quad9 Unfiltered** (Fundação suíça, sem censura, sem filtros e com estrito DNSSEC para não bloquear streams).
+   - **`DNS 3 (8.8.8.8)`**: Google Public DNS (estabilidade de rota global).
+   - **`DNS 4 (1.0.0.1)`**: Cloudflare Secundário (redundância ultra-rápida).
+3. **Purga de Bloatware & Droppers Chineses (Base UAD Next Generation):**
+   - Elimina da raiz instaladores silenciosos de firmware chinês (`com.adups.fota`, `com.android.ad.daemon`, `com.rockchip.adservice`, etc.).
+   - Desativa serviços pesados do Google em segundo plano (`Google Play Services`, `Play Store`, `SetupWizard`, etc.).
+   - Desativa navegadores e apps pesados concorrentes de streaming.
+4. **Tuning de Hardware & Rede:**
+   - Força aceleração de vídeo por GPU (`debug.sf.hw = 1` e `video.accelerate.hw = 1`).
+   - Aumenta os buffers de rede TCP para evitar travamentos de buffer (*buffering*).
+5. **Memória RAM Máxima:**
+   - Desliga as escalas de animação (`0x`).
+   - Ativa `always_finish_activities = 1` (destrói tarefas em segundo plano).
+   - Limita os processos em segundo plano a `0`.
+6. **Interface Terminal Retrô & Diálogo de Conclusão:**
+   - Visual hacker (Fundo preto com tipografia Verde Claro / Neon).
+   - Auto-scroll automático do log.
+   - Pergunta ao final: *"FINALIZADO - Deseja reiniciar agora?"*.
 
 ---
 
-## 📲 How to Use
+## 🇺🇸 ENGLISH
 
-### Method 1: Direct Install on TV Box (APK)
-1. Download **`TVBOX_Optimizer_IPTV.apk`** from this repository.
-2. Transfer it to your TV Box via USB Flash Drive, browser, or Send Files to TV.
-3. Open the app, grant requested permissions on initial launch.
-4. Click **`[ 🚀 OPTIMIZE ]`**.
-5. Once finished, confirm the prompt to reboot the device.
+**TVBOX Optimizer** is an open-source performance tuner and debloater designed specifically for **Android TV, TV Boxes (Allwinner, Rockchip, Amlogic chips), and Fire TV Stick** devices. It prepares devices for smooth, lag-free IPTV streaming (TiviMate, XCIPTV, IPTV Smarters Pro, OTT Navigator, etc.) by eliminating background resource hogs, optimizing network routes, and securing system privacy.
 
-### Method 2: Remote via Computer (ADB)
-Ensure **USB Debugging** or **Network Debugging** is enabled in Developer Options:
-```powershell
-powershell -ExecutionPolicy Bypass -File ".\scripts\optimize_tvbox.ps1" -DeviceIp <TVBOX_IP> -Reboot
-```
+### ⚠️ IMPORTANT NOTICE:
+> **Before running the application on your TV Box, ensure that DEVELOPER OPTIONS (and USB DEBUGGING) is ENABLED in your device settings!**  
+> *(Go to Settings > About > Click 7 times on 'Build Number' to unlock Developer Options).*
+
+### ⚡ Key Features:
+1. **Full DPAD / TV Remote Control Support:**
+   - Both `[ OPTIMIZE ]` and `[ REBOOT ]` buttons have visual focus outlines (Neon highlights) for seamless navigation using only the TV remote control arrows.
+2. **Quadruple DNS Anti-Censorship Matrix:**
+   - **`DNS 1 (1.1.1.1)`**: Cloudflare Anycast — ultra-low latency.
+   - **`DNS 2 (9.9.9.10)`**: **Quad9 Unfiltered** — Swiss privacy foundation, zero domain filtering, strict DNSSEC, and immunity to regional blocks.
+   - **`DNS 3 (8.8.8.8)`**: Google Public DNS — global reliability and routing stability.
+   - **`DNS 4 (1.0.0.1)`**: Cloudflare Secondary — instant fallback redundancy.
+3. **Chinese Firmware Dropper & Spyware Purge (UAD Base):**
+   - Purgers silent background APK droppers and firmware adwares (`com.adups.fota`, `com.android.ad.daemon`, `com.rockchip.adservice`, `com.allwinner.service`, etc.).
+   - Disables heavy Google background services (`Google Play Services`, `Play Store`, `Google Services Framework`, `SetupWizard`, `TTS`).
+   - Disables unused stock browsers and competing heavy streaming apps.
+4. **Hardware & Network Tuning:**
+   - Forces direct GPU hardware video acceleration (`debug.sf.hw = 1` and `video.accelerate.hw = 1`).
+   - Expands TCP network socket window buffers to minimize stream buffering.
+5. **Extreme Free RAM:**
+   - Disables all animation scales (`0x`).
+   - Enables `always_finish_activities = 1` (frees RAM immediately upon exit).
+   - Sets background process limit to `0`.
+6. **Retro Terminal UI & Finish Dialog:**
+   - Black background (`#000000`) with Neon Green (`#39FF14`) monospace typography.
+   - Real-time auto-scrolling log console.
+   - Completion dialog prompt: *"FINISHED - Would you like to restart now?"*.
 
 ---
 
-## 🛠️ How to Build the APK from Source
+## 🛠️ Como Compilar / How to Build from Source
 
-Anyone can build their own signed APK without opening an IDE.
+Qualquer pessoa pode compilar o APK assinado diretamente via PowerShell sem precisar abrir uma IDE pesada / Anyone can compile the signed APK directly using PowerShell:
 
-### Prerequisites:
-* **JDK 8 or JDK 17+** (with `javac` accessible or `JAVA_HOME` set).
-* **Android SDK** with Platform `android-30` (Android 11) and Build-Tools (`aapt`, `d8`, `zipalign`, `apksigner`).
-
-### Build Command:
-Run the automated build script:
 ```powershell
 powershell -ExecutionPolicy Bypass -File ".\scripts\build_apk.ps1"
 ```
-Or specify paths manually if they are not in your environment variables:
-```powershell
-powershell -ExecutionPolicy Bypass -File ".\scripts\build_apk.ps1" -AndroidSdkPath "C:\path\to\android-sdk" -JdkPath "C:\path\to\jdk"
-```
-
-The script will automatically compile Java sources, convert them to Dalvik bytecode (`classes.dex`), package resources, align, and sign the output at `TVBOX_Optimizer_IPTV.apk`.
 
 ---
 
-## 📄 License
-Open source and distributed under the MIT License. Contributions and suggestions are welcome!
+## 📄 Licença / License
+Distribuído sob a licença MIT / Distributed under the MIT License.  
+**Assinatura / Signature:** `by: jesséx10`

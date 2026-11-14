@@ -3,66 +3,121 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:gravity="center"
-    android:padding="24dp"
-    android:background="#121212">
+    android:background="#000000"
+    android:padding="16dp">
 
-    <TextView
-        android:id="@+id/tvTitle"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="TVBOX OPTIMIZER FOR IPTV"
-        android:textSize="26sp"
-        android:textStyle="bold"
-        android:textColor="#00E676"
-        android:layout_marginBottom="12dp" />
-
-    <TextView
-        android:id="@+id/tvSubtitle"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="DNS 1.1.1.1/8.8.8.8 | NTP Brasil | Animações 0x | Bloqueio de Dropper Chinês"
-        android:textSize="14sp"
-        android:textColor="#B0BEC5"
-        android:layout_marginBottom="24dp" />
-
-    <Button
-        android:id="@+id/btnOptimize"
-        android:layout_width="320dp"
-        android:layout_height="60dp"
-        android:text="🚀 OTIMIZAR AGORA (1-CLIQUE)"
-        android:textSize="16sp"
-        android:textStyle="bold"
-        android:background="#2979FF"
-        android:textColor="#FFFFFF"
-        android:focusable="true"
-        android:layout_marginBottom="16dp" />
-
-    <Button
-        android:id="@+id/btnReboot"
-        android:layout_width="320dp"
-        android:layout_height="50dp"
-        android:text="🔄 REINICIAR TV BOX"
-        android:textSize="14sp"
-        android:background="#424242"
-        android:textColor="#FFFFFF"
-        android:focusable="true"
-        android:layout_marginBottom="16dp" />
-
-    <ScrollView
+    <!-- Top Navigation Header with DPAD focusable buttons -->
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="180dp"
-        android:background="#1E1E1E"
-        android:padding="8dp">
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="12dp">
 
         <TextView
-            android:id="@+id/tvLogs"
-            android:layout_width="match_parent"
+            android:id="@+id/tvTitle"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:text="Aguardando comando...\nPressione 'OTIMIZAR AGORA'."
-            android:textColor="#ECEFF1"
-            android:textSize="12sp"
+            android:layout_weight="1"
+            android:text="root@tvbox-optimizer:~# ./iptv-tuning"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:textColor="#39FF14"
             android:fontFamily="monospace" />
-    </ScrollView>
+
+        <Button
+            android:id="@+id/btnOptimize"
+            android:layout_width="wrap_content"
+            android:layout_height="52dp"
+            android:text="[ 🚀 OTIMIZAR ]"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:background="@drawable/btn_optimize_selector"
+            android:textColor="#FFFFFF"
+            android:focusable="true"
+            android:focusableInTouchMode="true"
+            android:nextFocusRight="@+id/btnReboot"
+            android:nextFocusDown="@+id/scrollLogs"
+            android:paddingLeft="20dp"
+            android:paddingRight="20dp"
+            android:layout_marginRight="10dp" />
+
+        <Button
+            android:id="@+id/btnReboot"
+            android:layout_width="wrap_content"
+            android:layout_height="52dp"
+            android:text="[ 🔄 REINICIAR ]"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:background="@drawable/btn_reboot_selector"
+            android:textColor="#FFFFFF"
+            android:focusable="true"
+            android:focusableInTouchMode="true"
+            android:nextFocusLeft="@+id/btnOptimize"
+            android:nextFocusDown="@+id/scrollLogs"
+            android:paddingLeft="20dp"
+            android:paddingRight="20dp" />
+    </LinearLayout>
+
+    <!-- Terminal Screen Container -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:background="#0A0A0A"
+        android:orientation="vertical"
+        android:padding="8dp">
+
+        <ScrollView
+            android:id="@+id/scrollLogs"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:fillViewport="true"
+            android:focusable="true"
+            android:focusableInTouchMode="true"
+            android:scrollbars="vertical">
+
+            <TextView
+                android:id="@+id/tvLogs"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Iniciando console do sistema...\n"
+                android:textColor="#39FF14"
+                android:textSize="13sp"
+                android:fontFamily="monospace"
+                android:lineSpacingExtra="3dp" />
+        </ScrollView>
+    </LinearLayout>
+
+    <!-- Bottom Footer: GitHub Project Link & Signature -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginTop="8dp">
+
+        <TextView
+            android:id="@+id/tvGithub"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="★ GitHub: https://github.com/mjcaetano87/tvbox-optimizer"
+            android:textSize="12sp"
+            android:textColor="#00E5FF"
+            android:fontFamily="monospace"
+            android:focusable="true"
+            android:focusableInTouchMode="true" />
+
+        <TextView
+            android:id="@+id/tvSignature"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="by: jesséx10"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:textColor="#FFD700"
+            android:fontFamily="monospace" />
+    </LinearLayout>
 
 </LinearLayout>
