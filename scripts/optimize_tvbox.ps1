@@ -23,24 +23,23 @@ if (-not (Test-Path $adbPath)) {
     $adb = $adbPath
 }
 
-# Se o IP não foi passado por parâmetro, pergunta interativamente ao usuário
-if ([string]::IsNullOrWhiteSpace($DeviceIp)) {
-    $DeviceIp = Read-Host "Digite o IP da TV Box (ex: 192.168.15.41)"
-}
-
-if ([string]::IsNullOrWhiteSpace($DeviceIp)) {
-    Write-Warning "Nenhum IP informado. Verificando se já existe dispositivo conectado..."
-} else {
-    Write-Host "[+] Conectando à TV Box em $DeviceIp`:$Port..." -ForegroundColor Green
-    & $adb connect "$($DeviceIp):$Port"
-    Start-Sleep -Seconds 2
-}
-
-# Verifica dispositivos conectados
+# Se já houver um dispositivo conectado via USB, usa diretamente; caso contrário, conecta via IP
 $devices = & $adb devices | Where-Object { $_ -match "\bdevice\b" -and $_ -notmatch "List of devices" }
 if (-not $devices) {
+    if ([string]::IsNullOrWhiteSpace($DeviceIp)) {
+        $DeviceIp = Read-Host "Nenhum aparelho USB detectado. Digite o IP da TV Box (ex: 192.168.15.42)"
+    }
+    if (-not [string]::IsNullOrWhiteSpace($DeviceIp)) {
+        Write-Host "[+] Conectando à TV Box em $DeviceIp`:$Port..." -ForegroundColor Green
+        & $adb connect "$($DeviceIp):$Port"
+        Start-Sleep -Seconds 2
+        $devices = & $adb devices | Where-Object { $_ -match "\bdevice\b" -and $_ -notmatch "List of devices" }
+    }
+}
+
+if (-not $devices) {
     Write-Warning "Nenhum dispositivo Android autorizado/conectado foi detectado pelo ADB."
-    Write-Host "Certifique-se de que a Depuração de Rede/USB está ativada na TV Box." -ForegroundColor Yellow
+    Write-Host "Certifique-se de que a Depuração USB/Rede está ativa." -ForegroundColor Yellow
     exit 1
 }
 
