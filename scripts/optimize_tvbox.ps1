@@ -9,28 +9,37 @@ Write-Host "==========================================================" -Foregro
 Write-Host "   TVBOX OPTIMIZER FOR IPTV (ADB DEBLOATER & TUNING v2.1) " -ForegroundColor Yellow
 Write-Host "==========================================================" -ForegroundColor Cyan
 
-# Definir caminho do ADB
-$adbPath = "C:\Users\xeda\.gemini\antigravity\scratch\platform-tools\adb.exe"
-if (-not (Test-Path $adbPath)) {
-    $adbCmd = Get-Command "adb" -ErrorAction SilentlyContinue
-    if ($adbCmd) {
-        $adb = $adbCmd.Source
-    } else {
-        Write-Error "O executável ADB não foi encontrado."
+# Locate ADB executable automatically from PATH or local environment
+$adbCmd = Get-Command "adb" -ErrorAction SilentlyContinue
+if ($adbCmd) {
+    $adb = $adbCmd.Source
+} else {
+    $commonAdbPaths = @(
+        "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe",
+        "$env:ProgramFiles\platform-tools\adb.exe"
+    )
+    $found = $false
+    foreach ($p in $commonAdbPaths) {
+        if (Test-Path $p) {
+            $adb = $p
+            $found = $true
+            break
+        }
+    }
+    if (-not $found) {
+        Write-Error "ADB executable was not found. Please ensure Android platform-tools is installed and added to PATH."
         exit 1
     }
-} else {
-    $adb = $adbPath
 }
 
-# Se já houver um dispositivo conectado via USB, usa diretamente; caso contrário, conecta via IP
+# If USB device is connected, use it; otherwise, connect via IP
 $devices = & $adb devices | Where-Object { $_ -match "\bdevice\b" -and $_ -notmatch "List of devices" }
 if (-not $devices) {
     if ([string]::IsNullOrWhiteSpace($DeviceIp)) {
-        $DeviceIp = Read-Host "Nenhum aparelho USB detectado. Digite o IP da TV Box (ex: 192.168.15.42)"
+        $DeviceIp = Read-Host "No USB device detected. Enter TV Box IP address (e.g. 192.168.1.100)"
     }
     if (-not [string]::IsNullOrWhiteSpace($DeviceIp)) {
-        Write-Host "[+] Conectando à TV Box em $DeviceIp`:$Port..." -ForegroundColor Green
+        Write-Host "[+] Connecting to TV Box at $DeviceIp`:$Port..." -ForegroundColor Green
         & $adb connect "$($DeviceIp):$Port"
         Start-Sleep -Seconds 2
         $devices = & $adb devices | Where-Object { $_ -match "\bdevice\b" -and $_ -notmatch "List of devices" }
@@ -38,15 +47,15 @@ if (-not $devices) {
 }
 
 if (-not $devices) {
-    Write-Warning "Nenhum dispositivo Android autorizado/conectado foi detectado pelo ADB."
-    Write-Host "Certifique-se de que a Depuração USB/Rede está ativa." -ForegroundColor Yellow
+    Write-Warning "No authorized/connected Android device was detected by ADB."
+    Write-Host "Please ensure USB Debugging or Network Debugging is enabled on the device." -ForegroundColor Yellow
     exit 1
 }
 
-Write-Host "[+] Dispositivo conectado com sucesso:`n$devices" -ForegroundColor Green
+Write-Host "[+] Device connected successfully:`n$devices" -ForegroundColor Green
 
-# 1. Configurar Fuso Horário e NTP Brasil (Horário de Brasília)
-Write-Host "`n[*] [1/6] Configurando Horário de Brasília e NTP Brasil..." -ForegroundColor Cyan
+# 1. Configure Timezone and NTP Brasil
+Write-Host "`n[*] [1/6] Setting Brazil Timezone (GMT-3) and NTP servers..." -ForegroundColor Cyan
 & $adb shell setprop persist.sys.timezone "America/Sao_Paulo"
 & $adb shell setprop persist.sys.time.zone "America/Sao_Paulo"
 & $adb shell settings put global auto_time 1
@@ -55,14 +64,14 @@ Write-Host "`n[*] [1/6] Configurando Horário de Brasília e NTP Brasil..." -For
 & $adb shell settings put global ntp_server_2 "a.st1.ntp.br"
 & $adb shell settings put global ntp_server_3 "b.st1.ntp.br"
 & $adb shell setprop net.ntp.server "pool.ntp.br"
-Write-Host "  -> Horário de Brasília (GMT-3) e NTP pool.ntp.br aplicados." -ForegroundColor Green
+Write-Host "  -> Timezone and NTP servers configured." -ForegroundColor Green
 
-# 2. Configurar Matriz Quádrupla de DNS Anti-Bloqueio (1.1.1.1, 9.9.9.10, 8.8.8.8, 1.0.0.1)
-Write-Host "`n[*] [2/6] Configurando Matriz Quádrupla de DNS Anti-Bloqueio..." -ForegroundColor Cyan
+# 2. Configure Quadruple DNS Matrix (1.1.1.1, 9.9.9.10, 8.8.8.8, 1.0.0.1)
+Write-Host "`n[*] [2/6] Configuring Quadruple DNS Anti-Block Matrix..." -ForegroundColor Cyan
 Write-Host "  -> DNS 1: 1.1.1.1 (Cloudflare Anycast)" -ForegroundColor Gray
-Write-Host "  -> DNS 2: 9.9.9.10 (Quad9 Unfiltered - Sem Censura / Suíça)" -ForegroundColor Gray
+Write-Host "  -> DNS 2: 9.9.9.10 (Quad9 Unfiltered - No Censorship / Switzerland)" -ForegroundColor Gray
 Write-Host "  -> DNS 3: 8.8.8.8 (Google Public)" -ForegroundColor Gray
-Write-Host "  -> DNS 4: 1.0.0.1 (Cloudflare Redundância)" -ForegroundColor Gray
+Write-Host "  -> DNS 4: 1.0.0.1 (Cloudflare Secondary)" -ForegroundColor Gray
 
 $dnsCommands = @(
     "setprop net.dns1 1.1.1.1",
@@ -86,39 +95,39 @@ $dnsCommands = @(
 foreach ($cmd in $dnsCommands) {
     & $adb shell $cmd 2>$null | Out-Null
 }
-Write-Host "  -> Matriz quádrupla de DNS configurada com sucesso." -ForegroundColor Green
+Write-Host "  -> DNS matrix configured successfully." -ForegroundColor Green
 
-# 3. Ajustes de Desenvolvedor: Animações Desligadas (Zero Lag)
-Write-Host "`n[*] [3/6] Desligando Animações (Janela, Transição e Duração)..." -ForegroundColor Cyan
+# 3. Developer Options: Turn off Animations (Zero Lag)
+Write-Host "`n[*] [3/6] Disabling Window, Transition, and Animator scales..." -ForegroundColor Cyan
 & $adb shell settings put global window_animation_scale 0
 & $adb shell settings put global transition_animation_scale 0
 & $adb shell settings put global animator_duration_scale 0
-Write-Host "  -> Escalas de animação definidas para 0 (DESLIGADAS)." -ForegroundColor Green
+Write-Host "  -> Animation scales set to 0 (Disabled)." -ForegroundColor Green
 
-# 4. Ajustes de Desenvolvedor: Limite de 2º Plano (0) & Destruir Atividades
-Write-Host "`n[*] [4/6] Configurando Limite de Segundo Plano (0 processos) e Não Manter Atividades..." -ForegroundColor Cyan
+# 4. Background Limits: 0 Processes & Always Finish Activities
+Write-Host "`n[*] [4/6] Setting Background Process Limit (0) and Destroy Activities on Exit..." -ForegroundColor Cyan
 & $adb shell settings put global always_finish_activities 1
 & $adb shell setprop persist.sys.always_finish 1
 & $adb shell settings put global app_process_limit 0
 & $adb shell setprop persist.sys.process_limit 0
 & $adb shell settings put global max_phantom_processes 2147483647 2>$null
-Write-Host "  -> 'Não manter atividades' ATIVADO (1)." -ForegroundColor Green
-Write-Host "  -> 'Limite de processos em 2º plano' definido para 0 (SEM PROCESSOS)." -ForegroundColor Green
+Write-Host "  -> 'Always finish activities' ENABLED." -ForegroundColor Green
+Write-Host "  -> 'Background process limit' set to 0 (Maximum Free RAM)." -ForegroundColor Green
 
-# 5. Otimizações de Kernel & I/O para Streaming IPTV
-Write-Host "`n[*] [5/6] Ajustando Buffers TCP de Rede e Aceleração de Hardware..." -ForegroundColor Cyan
+# 5. Kernel & I/O Streaming Buffers
+Write-Host "`n[*] [5/6] Tuning Network TCP Buffers and Video Hardware Acceleration..." -ForegroundColor Cyan
 & $adb shell setprop net.tcp.buffersize.wifi 524288,1048576,2097152,262144,524288,1048576
 & $adb shell setprop net.tcp.buffersize.ethernet 524288,1048576,2097152,262144,524288,1048576
 & $adb shell setprop debug.sf.hw 1
 & $adb shell setprop debug.performance.tuning 1
 & $adb shell setprop video.accelerate.hw 1
-Write-Host "  -> Buffers de streaming e aceleração de vídeo por hardware configurados." -ForegroundColor Green
+Write-Host "  -> Streaming TCP buffers and GPU hardware acceleration tuned." -ForegroundColor Green
 
-# 6. Desativar Droppers Chineses, Serviços do Google e Bloatwares
-Write-Host "`n[*] [6/6] Purgando Droppers Chineses, Google Services e Bloatwares (Base UAD)..." -ForegroundColor Cyan
+# 6. Purge Chinese Droppers, Google Services and Bloatware (UAD Database)
+Write-Host "`n[*] [6/6] Purging Chinese Firmware Droppers and Heavy Bloatware (UAD Base)..." -ForegroundColor Cyan
 
 $targetPackages = @(
-    # Droppers / Spywares de Firmware Chinês
+    # Firmware Droppers & Spyware
     "com.adups.fota",
     "com.adups.fota.sysoper",
     "com.android.providers.downloads.ui.test",
@@ -136,7 +145,7 @@ $targetPackages = @(
     "com.daemon.shelper",
     "com.evenwell.AprUploadService",
 
-    # Google Services Pesados
+    # Google Services & Store
     "com.google.android.gms",
     "com.android.vending",
     "com.google.android.gsf",
@@ -152,7 +161,7 @@ $targetPackages = @(
     "com.google.android.printservice.recommendation",
     "com.android.printservice.recommendation",
 
-    # Navegadores
+    # Browsers
     "com.android.chrome",
     "com.android.browser",
     "org.chromium.webview_shell",
@@ -160,7 +169,7 @@ $targetPackages = @(
     "com.opera.mini.native",
     "org.mozilla.firefox",
 
-    # Streaming Pesado
+    # Competing Heavy Streaming Apps
     "com.netflix.ninja",
     "com.netflix.mediaclient",
     "com.netflix.partner.activation",
@@ -180,31 +189,31 @@ $installedPackages = & $adb shell pm list packages | ForEach-Object { $_ -replac
 $disabledCount = 0
 foreach ($pkg in $targetPackages) {
     if ($installedPackages -contains $pkg) {
-        Write-Host "  -> Purgando pacote: $pkg..." -NoNewline
+        Write-Host "  -> Purging package: $pkg..." -NoNewline
         $res = & $adb shell pm disable-user --user 0 $pkg 2>&1
         if ($LASTEXITCODE -eq 0 -or $res -match "disabled") {
-            Write-Host " [DESATIVADO]" -ForegroundColor Green
+            Write-Host " [DISABLED]" -ForegroundColor Green
             $disabledCount++
         } else {
             $res2 = & $adb shell pm uninstall -k --user 0 $pkg 2>&1
             if ($LASTEXITCODE -eq 0 -or $res2 -match "Success") {
-                Write-Host " [REMOVIDO USER 0]" -ForegroundColor Yellow
+                Write-Host " [REMOVED USER 0]" -ForegroundColor Yellow
                 $disabledCount++
             } else {
-                Write-Host " [FALHA / RESTRITO]" -ForegroundColor Red
+                Write-Host " [RESTRICTED / FAILED]" -ForegroundColor Red
             }
         }
     }
 }
 
-Write-Host "`n[+] Limpeza concluída! $disabledCount pacotes foram desativados/removidos." -ForegroundColor Green
+Write-Host "`n[+] Purge completed! $disabledCount packages were disabled/removed." -ForegroundColor Green
 
 if ($Reboot) {
-    Write-Host "`n[*] Reiniciando a TV Box agora para aplicar todas as configurações..." -ForegroundColor Cyan
+    Write-Host "`n[*] Rebooting TV Box now to apply all settings..." -ForegroundColor Cyan
     & $adb reboot
-    Write-Host "[+] Comando de reinicialização enviado com sucesso!" -ForegroundColor Green
+    Write-Host "[+] Reboot command sent successfully!" -ForegroundColor Green
 }
 
 Write-Host "`n==========================================================" -ForegroundColor Cyan
-Write-Host "          OTIMIZAÇÃO CONCLUÍDA COM SUCESSO!               " -ForegroundColor Green
+Write-Host "          OPTIMIZATION COMPLETED SUCCESSFULLY!            " -ForegroundColor Green
 Write-Host "==========================================================" -ForegroundColor Cyan
