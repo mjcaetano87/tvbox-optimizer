@@ -21,7 +21,10 @@ import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public class MainActivity extends Activity {
 
@@ -44,8 +47,9 @@ public class MainActivity extends Activity {
         btnReboot = (Button) findViewById(R.id.btnReboot);
 
         appendLog("=================================================");
-        appendLog("   TVBOX TERMINAL OPTIMIZER - IPTV SYSTEM v1.2   ");
+        appendLog("   TVBOX TERMINAL OPTIMIZER - UAD EDITION v2.0   ");
         appendLog("=================================================");
+        appendLog("[*] Base de dados UAD (Universal Android Debloater) integrada.");
         appendLog("[*] Verificando privilégios e permissões de sistema...");
 
         checkAndRequestAllPermissions();
@@ -83,7 +87,7 @@ public class MainActivity extends Activity {
         try {
             AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this, AlertDialog.THEME_DEVICE_DEFAULT_DARK);
             builder.setTitle("FINALIZADO");
-            builder.setMessage("Todas as otimizações para IPTV foram aplicadas com sucesso!\n\nDeseja reiniciar agora?");
+            builder.setMessage("Todas as otimizações e remoções da base UAD foram concluídas!\n\nDeseja reiniciar agora?");
             builder.setCancelable(false);
             builder.setPositiveButton("Sim, Reiniciar", new DialogInterface.OnClickListener() {
                 @Override
@@ -102,12 +106,11 @@ public class MainActivity extends Activity {
             AlertDialog alert = builder.create();
             alert.show();
         } catch (Exception e) {
-            appendLog("[!] Alerta final: FINALIZADO. Deseja reiniciar agora? (Clique no botão Reiniciar)");
+            appendLog("[!] FINALIZADO. Deseja reiniciar agora? (Clique no botão Reiniciar)");
         }
     }
 
     private void checkAndRequestAllPermissions() {
-        // 1. Permissões de Armazenamento / Gravação
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             List<String> needed = new ArrayList<String>();
             if (checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
@@ -124,7 +127,6 @@ public class MainActivity extends Activity {
             }
         }
 
-        // 2. Permissão de Gerenciamento Total de Arquivos (Android 11+)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             try {
                 if (!Environment.isExternalStorageManager()) {
@@ -136,7 +138,6 @@ public class MainActivity extends Activity {
             } catch (Exception ignored) {}
         }
 
-        // 3. Permissão para Instalar APKs de Fontes Desconhecidas (Android 8+)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             try {
                 if (!getPackageManager().canRequestPackageInstalls()) {
@@ -150,7 +151,6 @@ public class MainActivity extends Activity {
             } catch (Exception ignored) {}
         }
 
-        // 4. Permissão para Escrever Configurações do Sistema
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             try {
                 if (!Settings.System.canWrite(this)) {
@@ -164,12 +164,11 @@ public class MainActivity extends Activity {
             } catch (Exception ignored) {}
         }
 
-        // 5. Teste de Acesso Root (su)
         String suTest = execCommand("id");
         if (suTest.contains("uid=0")) {
             appendLog("[ROOT] Acesso de superusuário (ROOT UID=0): ATIVO!");
         } else {
-            appendLog("[INFO] Modo padrão de usuário. Usando comandos de sistema...");
+            appendLog("[INFO] Modo padrão de usuário. Usando engine ADB/Shell...");
         }
 
         appendLog("[*] Pronto! Pressione [ 🚀 OTIMIZAR ] para aplicar as diretrizes IPTV.");
@@ -197,7 +196,7 @@ public class MainActivity extends Activity {
         appendLog("=================================================");
 
         // 1. Horário de Brasília & NTP Brasil
-        appendLog("\n[*] [1/5] Sincronizando Horario de Brasilia (GMT-3) e NTP.BR...");
+        appendLog("\n[*] [1/6] Sincronizando Horario de Brasilia (GMT-3) e NTP.BR...");
         try {
             Settings.Global.putInt(getContentResolver(), Settings.Global.AUTO_TIME, 1);
             Settings.Global.putInt(getContentResolver(), Settings.Global.AUTO_TIME_ZONE, 1);
@@ -213,7 +212,7 @@ public class MainActivity extends Activity {
         appendLog("  -> Horario GMT-3 e NTP pool.ntp.br configurados.");
 
         // 2. DNS 1.1.1.1 e 8.8.8.8
-        appendLog("\n[*] [2/5] Forcando servidores DNS 1.1.1.1 e 8.8.8.8...");
+        appendLog("\n[*] [2/6] Forcando servidores DNS 1.1.1.1 e 8.8.8.8...");
         String[] dnsCmds = new String[] {
             "setprop net.dns1 1.1.1.1",
             "setprop net.dns2 8.8.8.8",
@@ -231,7 +230,7 @@ public class MainActivity extends Activity {
         appendLog("  -> DNS Cloudflare (1.1.1.1) e Google (8.8.8.8) ativos.");
 
         // 3. Animações 0x (Zero Lag)
-        appendLog("\n[*] [3/5] Desligando Animacoes (Janela, Transicao e Duracao)...");
+        appendLog("\n[*] [3/6] Desligando Animacoes (Janela, Transicao e Duracao)...");
         try {
             Settings.Global.putFloat(getContentResolver(), Settings.Global.WINDOW_ANIMATION_SCALE, 0f);
             Settings.Global.putFloat(getContentResolver(), Settings.Global.TRANSITION_ANIMATION_SCALE, 0f);
@@ -243,7 +242,7 @@ public class MainActivity extends Activity {
         appendLog("  -> Animacoes definidas para 0x (DESLIGADAS).");
 
         // 4. Limite de Segundo Plano & Destruir Atividades
-        appendLog("\n[*] [4/5] Bloqueando Processos em Segundo Plano...");
+        appendLog("\n[*] [4/6] Bloqueando Processos em Segundo Plano...");
         try {
             Settings.Global.putInt(getContentResolver(), Settings.Global.ALWAYS_FINISH_ACTIVITIES, 1);
             Settings.Global.putInt(getContentResolver(), "app_process_limit", 0);
@@ -252,79 +251,135 @@ public class MainActivity extends Activity {
         execCommand("setprop persist.sys.always_finish 1");
         execCommand("settings put global app_process_limit 0");
         execCommand("setprop persist.sys.process_limit 0");
-        appendLog("  -> Nao manter atividades: ATIVO (destroi ao sair).");
-        appendLog("  -> Limite de background: 0 PROCESSOS (RAM 100% livre).");
+        appendLog("  -> Nao manter atividades: ATIVO.");
+        appendLog("  -> Limite de background: 0 PROCESSOS (RAM Maxima).");
 
-        // 5. Bloqueio de Droppers Chineses, Autoinstaladores e Bloatwares
-        appendLog("\n[*] [5/5] Purgando Droppers Chineses e Bloatwares pesados...");
-        List<String> packagesToDisable = new ArrayList<String>();
+        // 5. Otimizações de Kernel & I/O para Streaming IPTV
+        appendLog("\n[*] [5/6] Ajustando Kernel, VM e Buffer de Rede para IPTV...");
+        execCommand("setprop net.tcp.buffersize.wifi 524288,1048576,2097152,262144,524288,1048576");
+        execCommand("setprop net.tcp.buffersize.ethernet 524288,1048576,2097152,262144,524288,1048576");
+        execCommand("setprop debug.sf.hw 1");               // Forçar aceleração de vídeo por GPU/Hardware
+        execCommand("setprop debug.performance.tuning 1");
+        execCommand("setprop video.accelerate.hw 1");
+        appendLog("  -> Aceleracao de hardware e buffer TCP de rede otimizados.");
+
+        // 6. Purga Profunda com Base UAD (Universal Android Debloater)
+        appendLog("\n[*] [6/6] Purgando Spywares Chineses, Droppers e Bloatware (Base UAD)...");
         
-        // Bloatware Chinês / Droppers / Spywares / Autoinstaladores
-        packagesToDisable.add("com.android.providers.downloads.ui.test");
-        packagesToDisable.add("com.android.ad.daemon");
-        packagesToDisable.add("com.rockchip.adservice");
-        packagesToDisable.add("com.adups.fota");                  // FOTA chinês conhecido por baixar malware
-        packagesToDisable.add("com.adups.fota.sysoper");
-        packagesToDisable.add("com.allwinner.service");
-        packagesToDisable.add("com.softwinner.fireplayer");
-        packagesToDisable.add("com.android.rockchip");
-        packagesToDisable.add("com.google.android.fota");
-        packagesToDisable.add("com.android.smart.terminal.iptv");
-        packagesToDisable.add("com.android.adsystem");
-        packagesToDisable.add("com.fw.upgrade.sysoper");
-        packagesToDisable.add("com.redstone.ota.ui");
+        // Coleta pacotes instalados no aparelho para otimização rápida
+        String installedOutput = execCommand("pm list packages");
+        Set<String> installedSet = new HashSet<String>();
+        for (String line : installedOutput.split("\n")) {
+            String p = line.trim().replace("package:", "");
+            if (!p.isEmpty()) {
+                installedSet.add(p);
+            }
+        }
 
-        // Google Services Pesados
-        packagesToDisable.add("com.google.android.gms");
-        packagesToDisable.add("com.android.vending");
-        packagesToDisable.add("com.google.android.gsf");
-        packagesToDisable.add("com.google.android.onetimeinitializer");
-        packagesToDisable.add("com.google.android.partnersetup");
-        packagesToDisable.add("com.google.android.feedback");
-        packagesToDisable.add("com.google.android.tts");
-        packagesToDisable.add("com.google.android.syncadapters.contacts");
-        packagesToDisable.add("com.google.android.syncadapters.calendar");
-        packagesToDisable.add("com.google.android.backuptransport");
-        packagesToDisable.add("com.google.android.setupwizard");
-        packagesToDisable.add("com.google.android.printservice.recommendation");
+        List<String> uadTargets = getUadTargetPackages();
+        int disabledCount = 0;
 
-        // Navegadores
-        packagesToDisable.add("com.android.chrome");
-        packagesToDisable.add("com.android.browser");
-        packagesToDisable.add("org.chromium.webview_shell");
-        packagesToDisable.add("com.opera.browser");
-        packagesToDisable.add("com.opera.mini.native");
-        packagesToDisable.add("org.mozilla.firefox");
-
-        // Streaming Pesado Concorrente
-        packagesToDisable.add("com.netflix.ninja");
-        packagesToDisable.add("com.netflix.mediaclient");
-        packagesToDisable.add("com.google.android.youtube.tv");
-        packagesToDisable.add("com.google.android.youtube");
-        packagesToDisable.add("com.google.android.videos");
-        packagesToDisable.add("com.google.android.music");
-        packagesToDisable.add("com.amazon.amazonvideo.livingroom");
-        packagesToDisable.add("com.disney.disneyplus");
-
-        int disabled = 0;
-        for (String pkg : packagesToDisable) {
-            String res = execCommand("pm disable-user --user 0 " + pkg);
-            if (res.contains("disabled") || res.contains("state")) {
-                disabled++;
-                appendLog("  [DESATIVADO] -> " + pkg);
-            } else {
-                String res2 = execCommand("pm uninstall -k --user 0 " + pkg);
-                if (res2.contains("Success")) {
-                    disabled++;
-                    appendLog("  [REMOVIDO]   -> " + pkg);
+        for (String pkg : uadTargets) {
+            if (installedSet.contains(pkg)) {
+                // Tenta desabilitar
+                String res = execCommand("pm disable-user --user 0 " + pkg);
+                if (res.contains("disabled") || res.contains("state")) {
+                    disabledCount++;
+                    appendLog("  [DESATIVADO] -> " + pkg);
+                } else {
+                    String res2 = execCommand("pm uninstall -k --user 0 " + pkg);
+                    if (res2.contains("Success")) {
+                        disabledCount++;
+                        appendLog("  [REMOVIDO]   -> " + pkg);
+                    }
                 }
             }
         }
-        appendLog("  -> Total de pacotes expurgados: " + disabled);
 
+        appendLog("  -> Total de pacotes pesados/droppers purgados: " + disabledCount);
         appendLog("\n=================================================");
         appendLog("   OTIMIZACAO FINALIZADA COM SUCESSO!            ");
         appendLog("=================================================");
+    }
+
+    private List<String> getUadTargetPackages() {
+        return Arrays.asList(
+            // === DROPPERS CHINESES, ADWARES E INVASORES DE FIRMWARE (UAD / ALLWINNER / ROCKCHIP) ===
+            "com.adups.fota",
+            "com.adups.fota.sysoper",
+            "com.android.providers.downloads.ui.test",
+            "com.android.ad.daemon",
+            "com.android.adsystem",
+            "com.rockchip.adservice",
+            "com.allwinner.service",
+            "com.softwinner.fireplayer",
+            "com.android.rockchip",
+            "com.google.android.fota",
+            "com.android.smart.terminal.iptv",
+            "com.fw.upgrade.sysoper",
+            "com.redstone.ota.ui",
+            "com.LocalFota",
+            "com.daemon.shelper",
+            "com.tct.tctsmartapprecommend",
+            "com.google.mainline.adservices",
+            "com.google.android.adservices.api",
+            "com.android.adservices.api",
+            "com.android.ext.adservices.api",
+            "com.evenwell.AprUploadService",
+            "com.evenwell.AprUploadService.data.overlay.base",
+            "com.evenwell.AprUploadService.data.overlay.base.s600id",
+            "com.evenwell.AprUploadService.data.overlay.base.s600ww",
+            "com.evenwell.customerfeedback.overlay.base.s600ww",
+
+            // === GOOGLE SERVICES PESADOS & TELEMETRIA ===
+            "com.google.android.gms",
+            "com.android.vending",
+            "com.google.android.gsf",
+            "com.google.android.gsf.login",
+            "com.google.android.onetimeinitializer",
+            "com.google.android.partnersetup",
+            "com.google.android.feedback",
+            "com.google.android.tts",
+            "com.google.android.syncadapters.contacts",
+            "com.google.android.syncadapters.calendar",
+            "com.google.android.backuptransport",
+            "com.google.android.setupwizard",
+            "com.google.android.setupwizard.a_overlay",
+            "com.google.android.overlay.setupwizard",
+            "com.google.android.printservice.recommendation",
+            "com.android.printservice.recommendation",
+            "com.google.android.apps.assistant",
+            "com.google.android.apps.searchlite",
+            "com.google.android.apps.chromecast.app",
+            "com.google.chromeremotedesktop",
+            "com.google.android.tvrecommendations",
+            "com.google.android.apps.youtube.music.setupwizard",
+
+            // === NAVEGADORES PESADOS ===
+            "com.android.chrome",
+            "com.chrome.beta",
+            "com.chrome.dev",
+            "com.chrome.canary",
+            "com.android.browser",
+            "org.chromium.webview_shell",
+            "com.opera.browser",
+            "com.opera.mini.native",
+            "org.mozilla.firefox",
+
+            // === STREAMING PESADO & STUBS CONCORRENTES ===
+            "com.netflix.ninja",
+            "com.netflix.mediaclient",
+            "com.netflix.partner.activation",
+            "com.google.android.youtube.tv",
+            "com.google.android.youtube",
+            "com.google.android.videos",
+            "com.google.android.music",
+            "com.amazon.amazonvideo.livingroom",
+            "com.disney.disneyplus",
+            "com.globo.globotv",
+            "com.hbo.hbonow",
+            "com.wbd.stream"
+        );
     }
 
     private String execCommand(String command) {
