@@ -1,70 +1,60 @@
 # TVBOX Optimizer for IPTV 🚀
 
-Skill e ferramenta de automação para otimização extrema de dispositivos **TV Box, Android TV e Fire Stick** via **ADB** (Android Debug Bridge), focada em performance máxima para reprodutores e listas de IPTV.
+Ferramenta de automação e aplicativo APK para otimização extrema de dispositivos **TV Box, Android TV e Fire Stick** via **ADB** ou direto no aparelho via **APK**, com foco exclusivo em performance máxima para reprodutores IPTV (TiviMate, Smarters Pro, XCIPTV, OTT Navigator, etc.).
 
 ---
 
-## ⚡ O que este projeto faz?
+## ⚡ Novidades da Versão 2.1 (Anti-Bloqueio & UAD Base)
 
-1. **Ajustes de Desenvolvedor (Performance Máxima & Zero Lag):**
-   - **Escala de Animações:** Todas desligadas (`0x` para janela, transição e duração).
-   - **Não manter atividades:** Ativado (`always_finish_activities = 1`) — destrói as atividades da memória assim que o usuário sai.
-   - **Limite de Processamento em 2º Plano:** `0` (Sem processos em segundo plano).
+1. **Matriz Quádrupla de DNS Anti-Bloqueio:**
+   Configura os 4 slots nativos de resolução do Android para garantir abertura instantânea dos canais e imunidade contra ordens judiciais e bloqueios de operadoras locais:
+   - **`DNS 1` (1.1.1.1):** Cloudflare Anycast (menor latência do Brasil).
+   - **`DNS 2` (9.9.9.10):** Quad9 Unfiltered (Fundação suíça, sem filtros, sem censura e com DNSSEC).
+   - **`DNS 3` (8.8.8.8):** Google Public (maior disponibilidade do mundo).
+   - **`DNS 4` (1.0.0.1):** Cloudflare Secundário (redundância ultra-rápida).
 
-2. **Limpeza Profunda de Bloatwares:**
-   - Desativa serviços pesados em background do Google: *Google Play Services, Play Store, Framework, Setup Wizard, TTS, Feedback, sincronizadores*.
-   - Desativa navegadores pesados (*Chrome, Opera, Firefox, navegadores padrão*).
-   - Desativa apps de streaming concorrentes/pesados (*Netflix Android TV, Netflix Mobile, YouTube oficial, Prime Video, Disney+, etc.*).
-   - Mantém intactos componentes de mídia e reprodutores IPTV (*TiviMate, XCIPTV, Smarters Pro, OTT Navigator, etc.*).
+2. **Purga de Bloatware & Droppers Chineses (Base UAD Next Generation):**
+   - Elimina os instaladores ocultos de firmwares Allwinner/Rockchip que instalam APKs indesejados (`com.adups.fota`, `com.android.ad.daemon`, `com.rockchip.adservice`, etc.).
+   - Desativa todos os serviços pesados do Google em segundo plano (`Google Play Services`, `Play Store`, `Framework`, `SetupWizard`, etc.).
+   - Desativa navegadores e aplicativos de streaming concorrentes.
 
-3. **DNS Forçado de Baixa Latência:**
-   - Configura servidores DNS **1.1.1.1** (Cloudflare) e **8.8.8.8** (Google) no sistema e interfaces Ethernet/Wi-Fi, evitando bloqueios de operadoras e acelerando abertura dos canais.
+3. **Otimizações de Streaming & Aceleração de Hardware:**
+   - Buffers TCP de recepção de rede aumentados para evitar travamentos de buffer (*buffering*).
+   - Aceleração forçada por GPU (`debug.sf.hw = 1` e `video.accelerate.hw = 1`).
 
-4. **Horário de Brasília & NTP Brasil:**
-   - Seta fuso horário oficial para `America/Sao_Paulo` (GMT-3).
-   - Aponta servidores NTP para `pool.ntp.br` e `a.st1.ntp.br`, corrigindo falhas de EPG (Guia de Programação) e certificados SSL/TLS expirados por data/hora errada.
-
-5. **Reinicialização Automática:**
-   - Reinicia o aparelho para consolidar todas as novas diretrizes do sistema operacional.
+4. **Interface Hacker / Terminal v2.1 no APK:**
+   - Fundo 100% Preto e tipografia **Verde Claro / Neon**.
+   - Auto-scroll acompanhando cada linha do log em tempo real.
+   - Solicitação de permissões completas na 1ª abertura.
+   - Caixa de diálogo ao final: *"FINALIZADO, deseja reiniciar agora?"*.
 
 ---
 
 ## 📦 Estrutura do Repositório
 
 ```
-├── SKILL.md                 # Definição e documentação da Skill para agentes de IA
-├── README.md                # Este documento explicativo
+├── TVBOX_Optimizer_IPTV.apk  # APK pronto para instalação direta na TV Box
+├── SKILL.md                  # Definição e documentação da Skill para agentes de IA
+├── README.md                 # Documentação detalhada
 ├── scripts/
-│   └── optimize_tvbox.ps1   # Script de automação em PowerShell
+│   └── optimize_tvbox.ps1    # Script de automação remota via ADB
+├── app-source/               # Código-fonte completo do aplicativo Android
 └── references/
-    └── commands.md          # Guia de comandos rápidos ADB
+    └── commands.md           # Guia de comandos rápidos ADB
 ```
 
 ---
 
-## 🚀 Como Executar Manualmente
+## 🚀 Como Usar
 
-### 1. Pré-requisitos
-- Ter o **ADB** instalado no computador.
-- Estar conectado na mesma rede que a TV Box (ou conectado via cabo USB com Depuração USB ativada).
+### Opção 1: Direto na TV Box (Via APK)
+1. Baixe o arquivo **`TVBOX_Optimizer_IPTV.apk`** e instale na TV Box (via pen drive ou gerenciador de arquivos).
+2. Abra o aplicativo, conceda as permissões solicitadas na primeira execução.
+3. Clique em **`[ 🚀 OTIMIZAR ]`**.
+4. Ao concluir, confirme em **`[ Sim, Reiniciar ]`**.
 
-### 2. Executando o Script
-Abra o PowerShell e execute:
-
+### Opção 2: Remoto via Computador (PowerShell / ADB)
+Execute o script passando o IP da TV Box:
 ```powershell
-powershell -ExecutionPolicy Bypass -File ".\scripts\optimize_tvbox.ps1"
-```
-O script solicitará interativamente o **IP da TV Box** (ou você pode passar via parâmetro):
-
-```powershell
-powershell -ExecutionPolicy Bypass -File ".\scripts\optimize_tvbox.ps1" -DeviceIp 192.168.15.41 -Reboot
-```
-
----
-
-## 🔄 Reversão de Pacotes
-Caso precise reativar algum app posteriormente:
-```bash
-adb shell pm enable <nome_do_pacote>
-adb shell cmd package install-existing <nome_do_pacote>
+powershell -ExecutionPolicy Bypass -File ".\scripts\optimize_tvbox.ps1" -DeviceIp 192.168.15.42 -Reboot
 ```

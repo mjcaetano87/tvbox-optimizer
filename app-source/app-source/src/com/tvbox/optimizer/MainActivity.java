@@ -47,9 +47,10 @@ public class MainActivity extends Activity {
         btnReboot = (Button) findViewById(R.id.btnReboot);
 
         appendLog("=================================================");
-        appendLog("   TVBOX TERMINAL OPTIMIZER - UAD EDITION v2.0   ");
+        appendLog("   TVBOX TERMINAL OPTIMIZER - IPTV SYSTEM v2.1   ");
         appendLog("=================================================");
-        appendLog("[*] Base de dados UAD (Universal Android Debloater) integrada.");
+        appendLog("[*] Matriz Quádrupla DNS (1.1.1.1, 9.9.9.10, 8.8.8.8, 1.0.0.1)");
+        appendLog("[*] Base UAD integrada contra Spywares e Droppers");
         appendLog("[*] Verificando privilégios e permissões de sistema...");
 
         checkAndRequestAllPermissions();
@@ -87,7 +88,7 @@ public class MainActivity extends Activity {
         try {
             AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this, AlertDialog.THEME_DEVICE_DEFAULT_DARK);
             builder.setTitle("FINALIZADO");
-            builder.setMessage("Todas as otimizações e remoções da base UAD foram concluídas!\n\nDeseja reiniciar agora?");
+            builder.setMessage("Todas as otimizações, buffers de streaming e a matriz de 4 DNS foram aplicados!\n\nDeseja reiniciar agora?");
             builder.setCancelable(false);
             builder.setPositiveButton("Sim, Reiniciar", new DialogInterface.OnClickListener() {
                 @Override
@@ -211,23 +212,44 @@ public class MainActivity extends Activity {
         execCommand("settings put global ntp_server_2 a.st1.ntp.br");
         appendLog("  -> Horario GMT-3 e NTP pool.ntp.br configurados.");
 
-        // 2. DNS 1.1.1.1 e 8.8.8.8
-        appendLog("\n[*] [2/6] Forcando servidores DNS 1.1.1.1 e 8.8.8.8...");
+        // 2. Matriz Quádrupla de DNS Anti-Bloqueio
+        appendLog("\n[*] [2/6] Configurando Matriz Quadrupla de DNS Anti-Bloqueio...");
+        appendLog("  -> DNS 1: 1.1.1.1 (Cloudflare Anycast)");
+        appendLog("  -> DNS 2: 9.9.9.10 (Quad9 Unfiltered / Sem Filtros)");
+        appendLog("  -> DNS 3: 8.8.8.8 (Google Public)");
+        appendLog("  -> DNS 4: 1.0.0.1 (Cloudflare Secundario)");
+
         String[] dnsCmds = new String[] {
+            // DNS 1: Cloudflare
             "setprop net.dns1 1.1.1.1",
-            "setprop net.dns2 8.8.8.8",
             "setprop persist.net.dns1 1.1.1.1",
-            "setprop persist.net.dns2 8.8.8.8",
             "setprop dhcp.eth0.dns1 1.1.1.1",
-            "setprop dhcp.eth0.dns2 8.8.8.8",
             "setprop dhcp.wlan0.dns1 1.1.1.1",
-            "setprop dhcp.wlan0.dns2 8.8.8.8",
+
+            // DNS 2: Quad9 Unfiltered (sem censura/bloqueio)
+            "setprop net.dns2 9.9.9.10",
+            "setprop persist.net.dns2 9.9.9.10",
+            "setprop dhcp.eth0.dns2 9.9.9.10",
+            "setprop dhcp.wlan0.dns2 9.9.9.10",
+
+            // DNS 3: Google
+            "setprop net.dns3 8.8.8.8",
+            "setprop persist.net.dns3 8.8.8.8",
+            "setprop dhcp.eth0.dns3 8.8.8.8",
+            "setprop dhcp.wlan0.dns3 8.8.8.8",
+
+            // DNS 4: Cloudflare Fallback
+            "setprop net.dns4 1.0.0.1",
+            "setprop persist.net.dns4 1.0.0.1",
+            "setprop dhcp.eth0.dns4 1.0.0.1",
+            "setprop dhcp.wlan0.dns4 1.0.0.1",
+
             "settings put global private_dns_mode off"
         };
         for (String cmd : dnsCmds) {
             execCommand(cmd);
         }
-        appendLog("  -> DNS Cloudflare (1.1.1.1) e Google (8.8.8.8) ativos.");
+        appendLog("  -> Matriz de 4 DNS anti-bloqueio aplicada com sucesso.");
 
         // 3. Animações 0x (Zero Lag)
         appendLog("\n[*] [3/6] Desligando Animacoes (Janela, Transicao e Duracao)...");
@@ -255,18 +277,17 @@ public class MainActivity extends Activity {
         appendLog("  -> Limite de background: 0 PROCESSOS (RAM Maxima).");
 
         // 5. Otimizações de Kernel & I/O para Streaming IPTV
-        appendLog("\n[*] [5/6] Ajustando Kernel, VM e Buffer de Rede para IPTV...");
+        appendLog("\n[*] [5/6] Ajustando Kernel, Buffers TCP e Aceleracao de Hardware...");
         execCommand("setprop net.tcp.buffersize.wifi 524288,1048576,2097152,262144,524288,1048576");
         execCommand("setprop net.tcp.buffersize.ethernet 524288,1048576,2097152,262144,524288,1048576");
-        execCommand("setprop debug.sf.hw 1");               // Forçar aceleração de vídeo por GPU/Hardware
+        execCommand("setprop debug.sf.hw 1");
         execCommand("setprop debug.performance.tuning 1");
         execCommand("setprop video.accelerate.hw 1");
-        appendLog("  -> Aceleracao de hardware e buffer TCP de rede otimizados.");
+        appendLog("  -> Aceleracao de GPU e Buffers de Rede configurados.");
 
-        // 6. Purga Profunda com Base UAD (Universal Android Debloater)
+        // 6. Purga Profunda com Base UAD
         appendLog("\n[*] [6/6] Purgando Spywares Chineses, Droppers e Bloatware (Base UAD)...");
         
-        // Coleta pacotes instalados no aparelho para otimização rápida
         String installedOutput = execCommand("pm list packages");
         Set<String> installedSet = new HashSet<String>();
         for (String line : installedOutput.split("\n")) {
@@ -281,7 +302,6 @@ public class MainActivity extends Activity {
 
         for (String pkg : uadTargets) {
             if (installedSet.contains(pkg)) {
-                // Tenta desabilitar
                 String res = execCommand("pm disable-user --user 0 " + pkg);
                 if (res.contains("disabled") || res.contains("state")) {
                     disabledCount++;
@@ -296,7 +316,7 @@ public class MainActivity extends Activity {
             }
         }
 
-        appendLog("  -> Total de pacotes pesados/droppers purgados: " + disabledCount);
+        appendLog("  -> Total de pacotes expurgados: " + disabledCount);
         appendLog("\n=================================================");
         appendLog("   OTIMIZACAO FINALIZADA COM SUCESSO!            ");
         appendLog("=================================================");
