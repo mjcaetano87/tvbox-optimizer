@@ -2,7 +2,9 @@ package com.tvbox.optimizer;
 
 import android.Manifest;
 import android.app.Activity;
+import android.app.AlarmManager;
 import android.app.AlertDialog;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -54,7 +56,7 @@ public class MainActivity extends Activity {
         btnOptimize.requestFocus();
 
         appendLog("=================================================");
-        appendLog("   TVBOX TERMINAL OPTIMIZER - IPTV SYSTEM v2.2   ");
+        appendLog("   TVBOX TERMINAL OPTIMIZER - IPTV SYSTEM v2.3   ");
         appendLog("=================================================");
         appendLog("★ GitHub: https://github.com/mjcaetano87/tvbox-optimizer");
         appendLog("★ Desenvolvido por: jesséx10");
@@ -65,6 +67,7 @@ public class MainActivity extends Activity {
         appendLog("-------------------------------------------------");
         appendLog("[*] Suporte a Controle Remoto (DPAD): ATIVADO");
         appendLog("[*] Matriz Quádrupla DNS (1.1.1.1, 9.9.9.10, 8.8.8.8, 1.0.0.1)");
+        appendLog("[*] Forçador Fixo Fuso GMT-3 (Horário de Brasília Sem Horário de Verão)");
         appendLog("[*] Verificando privilégios e permissões de sistema...");
 
         checkAndRequestAllPermissions();
@@ -115,7 +118,7 @@ public class MainActivity extends Activity {
         try {
             AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this, AlertDialog.THEME_DEVICE_DEFAULT_DARK);
             builder.setTitle("FINALIZADO");
-            builder.setMessage("Todas as otimizações, buffers de streaming e a matriz de 4 DNS foram aplicados com sucesso!\n\nDeseja reiniciar agora?");
+            builder.setMessage("Todas as otimizações, buffers de streaming, matriz de 4 DNS e o fuso fixo GMT-3 foram aplicados!\n\nDeseja reiniciar agora?");
             builder.setCancelable(false);
             builder.setPositiveButton("Sim, Reiniciar", new DialogInterface.OnClickListener() {
                 @Override
@@ -224,21 +227,45 @@ public class MainActivity extends Activity {
         appendLog("   INICIANDO OTIMIZACAO GLOBAL PARA IPTV         ");
         appendLog("=================================================");
 
-        // 1. Horário de Brasília & NTP Brasil
-        appendLog("\n[*] [1/6] Sincronizando Horario de Brasilia (GMT-3) e NTP.BR...");
+        // 1. Horário de Brasília & Fuso Fixo GMT-3 (Sem horário de verão chinês)
+        appendLog("\n[*] [1/6] Forcando Fuso Fixo GMT-3 (Horario de Brasilia)...");
+        
+        // Tentativa via AlarmManager nativo do Android
+        try {
+            AlarmManager am = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
+            if (am != null) {
+                am.setTimeZone("GMT-03:00");
+            }
+        } catch (Exception ignored) {}
+
+        // Desativa fuso automático para a ROM chinesa não puxar GMT-2 incorreto
         try {
             Settings.Global.putInt(getContentResolver(), Settings.Global.AUTO_TIME, 1);
-            Settings.Global.putInt(getContentResolver(), Settings.Global.AUTO_TIME_ZONE, 1);
+            Settings.Global.putInt(getContentResolver(), Settings.Global.AUTO_TIME_ZONE, 0);
             Settings.Global.putString(getContentResolver(), "ntp_server", "pool.ntp.br");
             Settings.Global.putString(getContentResolver(), "ntp_server_2", "a.st1.ntp.br");
         } catch (Exception ignored) {}
-        execCommand("setprop persist.sys.timezone America/Sao_Paulo");
-        execCommand("setprop persist.sys.time.zone America/Sao_Paulo");
+
+        // Força por linha de comando em todas as camadas do sistema
         execCommand("settings put global auto_time 1");
-        execCommand("settings put global auto_time_zone 1");
+        execCommand("settings put global auto_time_zone 0");
+        execCommand("settings put system auto_time_zone 0");
+
+        // Fuso fixo GMT-3 / America/Sao_Paulo / America/Araguaina
+        execCommand("setprop persist.sys.timezone GMT-03:00");
+        execCommand("setprop persist.sys.time.zone GMT-03:00");
+        execCommand("setprop persist.sys.timezone.default GMT-03:00");
+        execCommand("service call alarm 3 s16 GMT-03:00");
+
+        // Configuração NTP oficial do Brasil
         execCommand("settings put global ntp_server pool.ntp.br");
         execCommand("settings put global ntp_server_2 a.st1.ntp.br");
-        appendLog("  -> Horario GMT-3 e NTP pool.ntp.br configurados.");
+        execCommand("settings put global ntp_server_3 b.st1.ntp.br");
+        execCommand("setprop net.ntp.server pool.ntp.br");
+
+        appendLog("  -> auto_time_zone=0 (desativado para travar em -03:00).");
+        appendLog("  -> Fuso fixado permanentemente em GMT-03:00 (Brasilia).");
+        appendLog("  -> NTP pool.ntp.br configurado com sincronizacao automatica.");
 
         // 2. Matriz Quádrupla de DNS Anti-Bloqueio
         appendLog("\n[*] [2/6] Configurando Matriz Quadrupla de DNS Anti-Bloqueio...");

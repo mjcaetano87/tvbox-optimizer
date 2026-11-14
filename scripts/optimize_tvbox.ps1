@@ -6,7 +6,7 @@ param(
 )
 
 Write-Host "==========================================================" -ForegroundColor Cyan
-Write-Host "   TVBOX OPTIMIZER FOR IPTV (ADB DEBLOATER & TUNING v2.1) " -ForegroundColor Yellow
+Write-Host "   TVBOX OPTIMIZER FOR IPTV (ADB DEBLOATER & TUNING v2.3) " -ForegroundColor Yellow
 Write-Host "==========================================================" -ForegroundColor Cyan
 
 # Locate ADB executable automatically from PATH or local environment
@@ -54,17 +54,26 @@ if (-not $devices) {
 
 Write-Host "[+] Device connected successfully:`n$devices" -ForegroundColor Green
 
-# 1. Configure Timezone and NTP Brasil
-Write-Host "`n[*] [1/6] Setting Brazil Timezone (GMT-3) and NTP servers..." -ForegroundColor Cyan
-& $adb shell setprop persist.sys.timezone "America/Sao_Paulo"
-& $adb shell setprop persist.sys.time.zone "America/Sao_Paulo"
+# 1. Configure Fixed Timezone GMT-3 (Brazil / Brasilia) and NTP Brasil
+Write-Host "`n[*] [1/6] Locking Fixed Timezone GMT-03:00 (Brasilia) and setting NTP servers..." -ForegroundColor Cyan
+
+# Disable auto timezone so Chinese firmware won't pull old daylight saving time (GMT-2)
 & $adb shell settings put global auto_time 1
-& $adb shell settings put global auto_time_zone 1
+& $adb shell settings put global auto_time_zone 0
+& $adb shell settings put system auto_time_zone 0
+
+# Set explicit GMT-03:00 timezone
+& $adb shell setprop persist.sys.timezone "GMT-03:00"
+& $adb shell setprop persist.sys.time.zone "GMT-03:00"
+& $adb shell setprop persist.sys.timezone.default "GMT-03:00"
+& $adb shell service call alarm 3 s16 "GMT-03:00" 2>$null
+
+# NTP Servers (pool.ntp.br)
 & $adb shell settings put global ntp_server "pool.ntp.br"
 & $adb shell settings put global ntp_server_2 "a.st1.ntp.br"
 & $adb shell settings put global ntp_server_3 "b.st1.ntp.br"
 & $adb shell setprop net.ntp.server "pool.ntp.br"
-Write-Host "  -> Timezone and NTP servers configured." -ForegroundColor Green
+Write-Host "  -> Fixed GMT-03:00 timezone and NTP servers locked." -ForegroundColor Green
 
 # 2. Configure Quadruple DNS Matrix (1.1.1.1, 9.9.9.10, 8.8.8.8, 1.0.0.1)
 Write-Host "`n[*] [2/6] Configuring Quadruple DNS Anti-Block Matrix..." -ForegroundColor Cyan
