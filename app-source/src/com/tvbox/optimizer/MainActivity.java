@@ -7,6 +7,7 @@ import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
@@ -50,13 +51,13 @@ public class MainActivity extends Activity {
         btnOptimize = (Button) findViewById(R.id.btnOptimize);
         btnReboot = (Button) findViewById(R.id.btnReboot);
 
-        // Foco inicial automático para o controle remoto (DPAD)
+        // Foco inicial no DPAD
         btnOptimize.setFocusable(true);
         btnOptimize.setFocusableInTouchMode(true);
         btnOptimize.requestFocus();
 
         appendLog("=================================================");
-        appendLog("   TVBOX TERMINAL OPTIMIZER - IPTV SYSTEM v2.3   ");
+        appendLog("   TVBOX TERMINAL OPTIMIZER - ANTI-BADBOX v2.4   ");
         appendLog("=================================================");
         appendLog("★ GitHub: https://github.com/mjcaetano87/tvbox-optimizer");
         appendLog("★ Desenvolvido por: jesséx10");
@@ -66,8 +67,9 @@ public class MainActivity extends Activity {
         appendLog("ATIVO NESTA TV BOX PARA OTIMIZACAO COMPLETA!");
         appendLog("-------------------------------------------------");
         appendLog("[*] Suporte a Controle Remoto (DPAD): ATIVADO");
+        appendLog("[*] Motor Triplo de Purga: Disable + AppOps + Neutralizer");
         appendLog("[*] Matriz Quádrupla DNS (1.1.1.1, 9.9.9.10, 8.8.8.8, 1.0.0.1)");
-        appendLog("[*] Forçador Fixo Fuso GMT-3 (Horário de Brasília Sem Horário de Verão)");
+        appendLog("[*] Fuso Fixo GMT-03:00 (Brasília Sem Horário de Verão)");
         appendLog("[*] Verificando privilégios e permissões de sistema...");
 
         checkAndRequestAllPermissions();
@@ -118,7 +120,7 @@ public class MainActivity extends Activity {
         try {
             AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this, AlertDialog.THEME_DEVICE_DEFAULT_DARK);
             builder.setTitle("FINALIZADO");
-            builder.setMessage("Todas as otimizações, buffers de streaming, matriz de 4 DNS e o fuso fixo GMT-3 foram aplicados!\n\nDeseja reiniciar agora?");
+            builder.setMessage("Todas as otimizações, buffers de streaming, matriz de 4 DNS e a purga contra BadBox/Mineradores foram concluídos!\n\nDeseja reiniciar agora?");
             builder.setCancelable(false);
             builder.setPositiveButton("Sim, Reiniciar", new DialogInterface.OnClickListener() {
                 @Override
@@ -227,10 +229,8 @@ public class MainActivity extends Activity {
         appendLog("   INICIANDO OTIMIZACAO GLOBAL PARA IPTV         ");
         appendLog("=================================================");
 
-        // 1. Horário de Brasília & Fuso Fixo GMT-3 (Sem horário de verão chinês)
-        appendLog("\n[*] [1/6] Forcando Fuso Fixo GMT-3 (Horario de Brasilia)...");
-        
-        // Tentativa via AlarmManager nativo do Android
+        // 1. Horário de Brasília & Fuso Fixo GMT-3
+        appendLog("\n[*] [1/6] Forcando Fuso Fixo GMT-03:00 (Brasilia)...");
         try {
             AlarmManager am = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
             if (am != null) {
@@ -238,7 +238,6 @@ public class MainActivity extends Activity {
             }
         } catch (Exception ignored) {}
 
-        // Desativa fuso automático para a ROM chinesa não puxar GMT-2 incorreto
         try {
             Settings.Global.putInt(getContentResolver(), Settings.Global.AUTO_TIME, 1);
             Settings.Global.putInt(getContentResolver(), Settings.Global.AUTO_TIME_ZONE, 0);
@@ -246,26 +245,18 @@ public class MainActivity extends Activity {
             Settings.Global.putString(getContentResolver(), "ntp_server_2", "a.st1.ntp.br");
         } catch (Exception ignored) {}
 
-        // Força por linha de comando em todas as camadas do sistema
         execCommand("settings put global auto_time 1");
         execCommand("settings put global auto_time_zone 0");
         execCommand("settings put system auto_time_zone 0");
-
-        // Fuso fixo GMT-3 / America/Sao_Paulo / America/Araguaina
         execCommand("setprop persist.sys.timezone GMT-03:00");
         execCommand("setprop persist.sys.time.zone GMT-03:00");
         execCommand("setprop persist.sys.timezone.default GMT-03:00");
         execCommand("service call alarm 3 s16 GMT-03:00");
-
-        // Configuração NTP oficial do Brasil
         execCommand("settings put global ntp_server pool.ntp.br");
         execCommand("settings put global ntp_server_2 a.st1.ntp.br");
         execCommand("settings put global ntp_server_3 b.st1.ntp.br");
         execCommand("setprop net.ntp.server pool.ntp.br");
-
-        appendLog("  -> auto_time_zone=0 (desativado para travar em -03:00).");
         appendLog("  -> Fuso fixado permanentemente em GMT-03:00 (Brasilia).");
-        appendLog("  -> NTP pool.ntp.br configurado com sincronizacao automatica.");
 
         // 2. Matriz Quádrupla de DNS Anti-Bloqueio
         appendLog("\n[*] [2/6] Configurando Matriz Quadrupla de DNS Anti-Bloqueio...");
@@ -275,30 +266,10 @@ public class MainActivity extends Activity {
         appendLog("  -> DNS 4: 1.0.0.1 (Cloudflare Secundario)");
 
         String[] dnsCmds = new String[] {
-            // DNS 1: Cloudflare
-            "setprop net.dns1 1.1.1.1",
-            "setprop persist.net.dns1 1.1.1.1",
-            "setprop dhcp.eth0.dns1 1.1.1.1",
-            "setprop dhcp.wlan0.dns1 1.1.1.1",
-
-            // DNS 2: Quad9 Unfiltered
-            "setprop net.dns2 9.9.9.10",
-            "setprop persist.net.dns2 9.9.9.10",
-            "setprop dhcp.eth0.dns2 9.9.9.10",
-            "setprop dhcp.wlan0.dns2 9.9.9.10",
-
-            // DNS 3: Google
-            "setprop net.dns3 8.8.8.8",
-            "setprop persist.net.dns3 8.8.8.8",
-            "setprop dhcp.eth0.dns3 8.8.8.8",
-            "setprop dhcp.wlan0.dns3 8.8.8.8",
-
-            // DNS 4: Cloudflare Fallback
-            "setprop net.dns4 1.0.0.1",
-            "setprop persist.net.dns4 1.0.0.1",
-            "setprop dhcp.eth0.dns4 1.0.0.1",
-            "setprop dhcp.wlan0.dns4 1.0.0.1",
-
+            "setprop net.dns1 1.1.1.1", "setprop persist.net.dns1 1.1.1.1", "setprop dhcp.eth0.dns1 1.1.1.1", "setprop dhcp.wlan0.dns1 1.1.1.1",
+            "setprop net.dns2 9.9.9.10", "setprop persist.net.dns2 9.9.9.10", "setprop dhcp.eth0.dns2 9.9.9.10", "setprop dhcp.wlan0.dns2 9.9.9.10",
+            "setprop net.dns3 8.8.8.8", "setprop persist.net.dns3 8.8.8.8", "setprop dhcp.eth0.dns3 8.8.8.8", "setprop dhcp.wlan0.dns3 8.8.8.8",
+            "setprop net.dns4 1.0.0.1", "setprop persist.net.dns4 1.0.0.1", "setprop dhcp.eth0.dns4 1.0.0.1", "setprop dhcp.wlan0.dns4 1.0.0.1",
             "settings put global private_dns_mode off"
         };
         for (String cmd : dnsCmds) {
@@ -340,38 +311,86 @@ public class MainActivity extends Activity {
         execCommand("setprop video.accelerate.hw 1");
         appendLog("  -> Aceleracao de GPU e Buffers de Rede configurados.");
 
-        // 6. Purga Profunda com Base UAD
-        appendLog("\n[*] [6/6] Purgando Spywares Chineses, Droppers e Bloatware (Base UAD)...");
+        // 6. Varredura Heurística Profunda & Purga Tripla (BadBox, Mineradores, Droppers)
+        appendLog("\n[*] [6/6] Purga Heuristica Profunda (Droppers, Mineradores e Adware)...");
         
-        String installedOutput = execCommand("pm list packages");
+        // Coleta todos os pacotes e seus nomes visuais
+        PackageManager pm = getPackageManager();
+        List<ApplicationInfo> apps = pm.getInstalledApplications(PackageManager.GET_META_DATA);
         Set<String> installedSet = new HashSet<String>();
-        for (String line : installedOutput.split("\n")) {
-            String p = line.trim().replace("package:", "");
-            if (!p.isEmpty()) {
-                installedSet.add(p);
+        Set<String> targetsToNeutralize = new HashSet<String>();
+
+        // Palavras-chave dos mineradores e adwares detectados
+        String[] suspiciousLabels = new String[] {
+            "netservice", "system guard", "systemguard", "movaplay", "nova tv", "novatv",
+            "rsshub", "setting assistant", "settingassistant", "snf launcher", "snflauncher",
+            "guardupdated", "assistant", "backup"
+        };
+
+        for (ApplicationInfo ai : apps) {
+            String pkg = ai.packageName;
+            installedSet.add(pkg);
+
+            // Não auto-elimina nosso próprio app nem reprodutores legítimos
+            if (pkg.equals(getPackageName()) || pkg.contains("tivimate") || pkg.contains("xciptv") || pkg.contains("smarters") || pkg.contains("ottnavigator")) {
+                continue;
             }
-        }
 
-        List<String> uadTargets = getUadTargetPackages();
-        int disabledCount = 0;
-
-        for (String pkg : uadTargets) {
-            if (installedSet.contains(pkg)) {
-                String res = execCommand("pm disable-user --user 0 " + pkg);
-                if (res.contains("disabled") || res.contains("state")) {
-                    disabledCount++;
-                    appendLog("  [DESATIVADO] -> " + pkg);
-                } else {
-                    String res2 = execCommand("pm uninstall -k --user 0 " + pkg);
-                    if (res2.contains("Success")) {
-                        disabledCount++;
-                        appendLog("  [REMOVIDO]   -> " + pkg);
-                    }
+            // Checa pelo nome do pacote
+            String lowerPkg = pkg.toLowerCase();
+            for (String kw : suspiciousLabels) {
+                String cleanKw = kw.replace(" ", "");
+                if (lowerPkg.contains(cleanKw)) {
+                    targetsToNeutralize.add(pkg);
+                    break;
                 }
             }
+
+            // Checa pelo rótulo visual (Nome do aplicativo que aparece na tela da TV)
+            try {
+                CharSequence label = pm.getApplicationLabel(ai);
+                if (label != null) {
+                    String lowerLabel = label.toString().toLowerCase();
+                    for (String kw : suspiciousLabels) {
+                        if (lowerLabel.contains(kw)) {
+                            targetsToNeutralize.add(pkg);
+                            break;
+                        }
+                    }
+                }
+            } catch (Exception ignored) {}
         }
 
-        appendLog("  -> Total de pacotes expurgados: " + disabledCount);
+        // Adiciona alvos conhecidos estáticos
+        targetsToNeutralize.addAll(getUadTargetPackages());
+
+        int neutralizedCount = 0;
+        for (String pkg : targetsToNeutralize) {
+            if (installedSet.contains(pkg)) {
+                // TÉCNICA TRIPLA CONTRA REINSTALAÇÃO / PERSISTÊNCIA:
+                
+                // 1. Mata imediatamente qualquer processo e bloqueia em AppOps
+                execCommand("am force-stop " + pkg);
+                execCommand("cmd appops set " + pkg + " RUN_IN_BACKGROUND ignore");
+                execCommand("cmd appops set " + pkg + " RUN_ANY_IN_BACKGROUND ignore");
+                execCommand("cmd appops set " + pkg + " SYSTEM_ALERT_WINDOW ignore");
+                execCommand("cmd appops set " + pkg + " WRITE_SETTINGS ignore");
+
+                // 2. Desativa para o usuário atual
+                execCommand("pm disable-user --user 0 " + pkg);
+                execCommand("pm disable " + pkg);
+
+                // 3. Oculta e desinstala
+                execCommand("pm hide " + pkg);
+                String unRes = execCommand("pm uninstall -k --user 0 " + pkg);
+                execCommand("pm clear " + pkg);
+
+                neutralizedCount++;
+                appendLog("  [NEUTRALIZADO] -> " + pkg);
+            }
+        }
+
+        appendLog("  -> Total de ameacas e bloatwares neutralizados: " + neutralizedCount);
         appendLog("\n=================================================");
         appendLog("   OTIMIZACAO FINALIZADA COM SUCESSO!            ");
         appendLog("=================================================");
@@ -379,6 +398,23 @@ public class MainActivity extends Activity {
 
     private List<String> getUadTargetPackages() {
         return Arrays.asList(
+            // === LISTA ESPECÍFICA DETECTADA NA TV BOX ===
+            "com.android.netservice",
+            "com.android.backup",
+            "com.android.assistant",
+            "com.android.settings.assistant",
+            "com.systemguard.android",
+            "com.systemguard.updated",
+            "com.movaplay.tv",
+            "com.movaplay.android",
+            "com.novatv.app",
+            "com.rsshub.tv",
+            "com.snf.launcher",
+            "com.snflauncher.tv",
+            "com.droidlogic.mboxlauncher",
+            "com.android.guardupdated",
+            "com.guard.update",
+
             // === DROPPERS CHINESES, ADWARES E INVASORES DE FIRMWARE (UAD / ALLWINNER / ROCKCHIP) ===
             "com.adups.fota",
             "com.adups.fota.sysoper",

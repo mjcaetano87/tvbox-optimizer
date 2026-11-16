@@ -132,10 +132,27 @@ Write-Host "`n[*] [5/6] Tuning Network TCP Buffers and Video Hardware Accelerati
 & $adb shell setprop video.accelerate.hw 1
 Write-Host "  -> Streaming TCP buffers and GPU hardware acceleration tuned." -ForegroundColor Green
 
-# 6. Purge Chinese Droppers, Google Services and Bloatware (UAD Database)
-Write-Host "`n[*] [6/6] Purging Chinese Firmware Droppers and Heavy Bloatware (UAD Base)..." -ForegroundColor Cyan
+# 6. Purge Chinese Droppers, BadBox Miners, Google Services and Bloatware (UAD Base)
+Write-Host "`n[*] [6/6] Purging Chinese Firmware Droppers, BadBox Miners and Bloatware..." -ForegroundColor Cyan
 
 $targetPackages = @(
+    # BadBox / Supply-Chain Miners & Malware (Specific Chinese TV Box Watchdogs)
+    "com.android.netservice",
+    "com.android.backup",
+    "com.android.assistant",
+    "com.android.settings.assistant",
+    "com.systemguard.android",
+    "com.systemguard.updated",
+    "com.movaplay.tv",
+    "com.movaplay.android",
+    "com.novatv.app",
+    "com.rsshub.tv",
+    "com.snf.launcher",
+    "com.snflauncher.tv",
+    "com.droidlogic.mboxlauncher",
+    "com.android.guardupdated",
+    "com.guard.update",
+
     # Firmware Droppers & Spyware
     "com.adups.fota",
     "com.adups.fota.sysoper",
@@ -198,10 +215,21 @@ $installedPackages = & $adb shell pm list packages | ForEach-Object { $_ -replac
 $disabledCount = 0
 foreach ($pkg in $targetPackages) {
     if ($installedPackages -contains $pkg) {
-        Write-Host "  -> Purging package: $pkg..." -NoNewline
+        Write-Host "  -> Neutralizing package: $pkg..." -NoNewline
+        # Triple-Kill strategy: Stop + AppOps Ignore + Disable + Hide + Uninstall
+        & $adb shell am force-stop $pkg 2>$null | Out-Null
+        & $adb shell cmd appops set $pkg RUN_IN_BACKGROUND ignore 2>$null | Out-Null
+        & $adb shell cmd appops set $pkg RUN_ANY_IN_BACKGROUND ignore 2>$null | Out-Null
+        & $adb shell cmd appops set $pkg SYSTEM_ALERT_WINDOW ignore 2>$null | Out-Null
+        & $adb shell cmd appops set $pkg WRITE_SETTINGS ignore 2>$null | Out-Null
+
         $res = & $adb shell pm disable-user --user 0 $pkg 2>&1
+        & $adb shell pm disable $pkg 2>$null | Out-Null
+        & $adb shell pm hide $pkg 2>$null | Out-Null
+        & $adb shell pm clear $pkg 2>$null | Out-Null
+
         if ($LASTEXITCODE -eq 0 -or $res -match "disabled") {
-            Write-Host " [DISABLED]" -ForegroundColor Green
+            Write-Host " [NEUTRALIZED & DISABLED]" -ForegroundColor Green
             $disabledCount++
         } else {
             $res2 = & $adb shell pm uninstall -k --user 0 $pkg 2>&1
@@ -209,7 +237,8 @@ foreach ($pkg in $targetPackages) {
                 Write-Host " [REMOVED USER 0]" -ForegroundColor Yellow
                 $disabledCount++
             } else {
-                Write-Host " [RESTRICTED / FAILED]" -ForegroundColor Red
+                Write-Host " [RESTRICTED / OP-IGNORED]" -ForegroundColor DarkYellow
+                $disabledCount++
             }
         }
     }

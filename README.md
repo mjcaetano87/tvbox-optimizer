@@ -24,7 +24,9 @@ O objetivo do projeto é transformar qualquer TV Box em uma máquina veloz, limp
    - **`DNS 2 (9.9.9.10)`**: **Quad9 Unfiltered** (Fundação suíça, sem censura, sem filtros e com estrito DNSSEC para não bloquear streams).
    - **`DNS 3 (8.8.8.8)`**: Google Public DNS (estabilidade de rota global).
    - **`DNS 4 (1.0.0.1)`**: Cloudflare Secundário (redundância ultra-rápida).
-3. **Purga de Bloatware & Droppers Chineses (Base UAD Next Generation):**
+3. **Purga de Bloatware, Droppers Chineses & Mineradores BadBox (Anti-Reinstalação):**
+   - **Motor Heurístico Dinâmico:** Escaneia tanto o nome do pacote quanto o rótulo visível na tela da TV para detectar e aniquilar invasores persistentes (`ASSISTANT`, `BACKUP`, `MOVAPLAY`, `NETSERVICE`, `NOVA TV`, `RSSHUB`, `SETTING ASSISTANT`, `SNF LAUNCHER`, `SYSTEM GUARDUPDATED`, etc.).
+   - **Técnica de Bloqueio Triplo:** Além do `pm disable-user` e `pm hide`, revoga permissões de execução via `cmd appops set <pkg> RUN_IN_BACKGROUND ignore` e `RUN_ANY_IN_BACKGROUND ignore` para que, mesmo se o firmware da Box tentar reviver o APK, o processo não consiga rodar em segundo plano ou minerar.
    - Elimina da raiz instaladores silenciosos de firmware chinês (`com.adups.fota`, `com.android.ad.daemon`, `com.rockchip.adservice`, etc.).
    - Desativa serviços pesados do Google em segundo plano (`Google Play Services`, `Play Store`, `SetupWizard`, etc.).
    - Desativa navegadores e apps pesados concorrentes de streaming.
@@ -58,8 +60,10 @@ O objetivo do projeto é transformar qualquer TV Box em uma máquina veloz, limp
    - **`DNS 2 (9.9.9.10)`**: **Quad9 Unfiltered** — Swiss privacy foundation, zero domain filtering, strict DNSSEC, and immunity to regional blocks.
    - **`DNS 3 (8.8.8.8)`**: Google Public DNS — global reliability and routing stability.
    - **`DNS 4 (1.0.0.1)`**: Cloudflare Secondary — instant fallback redundancy.
-3. **Chinese Firmware Dropper & Spyware Purge (UAD Base):**
-   - Purgers silent background APK droppers and firmware adwares (`com.adups.fota`, `com.android.ad.daemon`, `com.rockchip.adservice`, `com.allwinner.service`, etc.).
+3. **Chinese Firmware Dropper, Miner & BadBox Purge (Anti-Persistence):**
+   - **Dynamic Heuristic Engine:** Analyzes both package identifiers and UI display labels to eliminate stubborn malware and miners (`ASSISTANT`, `BACKUP`, `MOVAPLAY`, `NETSERVICE`, `NOVA TV`, `RSSHUB`, `SETTING ASSISTANT`, `SNF LAUNCHER`, `SYSTEM GUARDUPDATED`, etc.).
+   - **Triple-Kill Strategy:** Applies `am force-stop`, revokes background execution via `cmd appops set <pkg> RUN_IN_BACKGROUND ignore` and `RUN_ANY_IN_BACKGROUND ignore`, disables via `pm disable-user --user 0`, and uninstalls/hides the package so Chinese ROM watchdogs cannot resurrect it.
+   - Purges silent background APK droppers and firmware adwares (`com.adups.fota`, `com.android.ad.daemon`, `com.rockchip.adservice`, `com.allwinner.service`, etc.).
    - Disables heavy Google background services (`Google Play Services`, `Play Store`, `Google Services Framework`, `SetupWizard`, `TTS`).
    - Disables unused stock browsers and competing heavy streaming apps.
 4. **Hardware & Network Tuning:**
