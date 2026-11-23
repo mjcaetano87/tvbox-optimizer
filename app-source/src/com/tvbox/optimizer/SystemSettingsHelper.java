@@ -1,10 +1,12 @@
 package com.tvbox.optimizer;
 
+import android.Manifest;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Environment;
 import android.os.PowerManager;
 import android.provider.Settings;
 import android.widget.Toast;
@@ -20,6 +22,22 @@ public class SystemSettingsHelper {
         } catch (Throwable ignored) {
             return false;
         }
+    }
+
+    public static boolean hasStorageWritePermission(Context context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            try {
+                return Environment.isExternalStorageManager();
+            } catch (Throwable ignored) {}
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            try {
+                return context.checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED;
+            } catch (Throwable ignored) {
+                return false;
+            }
+        }
+        return true;
     }
 
     public static boolean canRequestPackageInstalls(Context context) {
@@ -70,7 +88,8 @@ public class SystemSettingsHelper {
     }
 
     public static boolean hasAllAdminPermissions(Context context) {
-        return canRequestPackageInstalls(context) &&
+        return hasStorageWritePermission(context) &&
+               canRequestPackageInstalls(context) &&
                isBatteryOptimizationIgnored(context) &&
                isSystemWriteGranted(context);
     }
@@ -87,6 +106,21 @@ public class SystemSettingsHelper {
             try {
                 Toast.makeText(context, fallbackToast, Toast.LENGTH_SHORT).show();
             } catch (Throwable ignored) {}
+        }
+        return false;
+    }
+
+    public static boolean requestStorageAllFilesPermission(Context context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            List<Intent> intents = new ArrayList<Intent>();
+            try {
+                Intent direct = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
+                direct.setData(Uri.parse("package:" + context.getPackageName()));
+                intents.add(direct);
+            } catch (Throwable ignored) {}
+            intents.add(new Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION));
+            intents.add(new Intent(Settings.ACTION_SETTINGS));
+            return openActivitySafely(context, intents, "Permita acesso a todos os arquivos.");
         }
         return false;
     }

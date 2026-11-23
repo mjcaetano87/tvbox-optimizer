@@ -7,6 +7,7 @@ import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
@@ -44,6 +45,7 @@ public class MainActivity extends Activity {
 
     private boolean isBusy = false;
     private boolean rootOrAdminVerified = false;
+    private boolean firstRunPromptShown = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -66,8 +68,15 @@ public class MainActivity extends Activity {
 
         printInitialBanner();
         setupListeners();
-        checkAndRequestAllPermissions();
         refreshPrivilegeTelemetry();
+
+        // Verificação imediata e interativa de permissões de escrita na 1ª execução
+        handler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                checkFirstRunPermissions();
+            }
+        }, 600);
     }
 
     @Override
@@ -78,14 +87,15 @@ public class MainActivity extends Activity {
 
     private void printInitialBanner() {
         appendLog("==================================================================");
-        appendLog("   TVBOX OPTIMIZER v3.0-ROOT - ANTI-BADBOX & TUNING IPTV          ");
+        appendLog("   TVBOX OPTIMIZER v3.1-COMPAT - ANTI-BADBOX & TUNING IPTV       ");
         appendLog("   Ordem: 1. ROOT/ADMIN  ->  2. OTIMIZAR  ->  3. REINICIAR        ");
         appendLog("==================================================================");
         appendLog("★ GitHub Oficial: https://github.com/mjcaetano87/tvbox-optimizer");
         appendLog("★ Desenvolvido por: jesséx10");
         appendLog("------------------------------------------------------------------");
-        appendLog("[*] Suporte a Controle Remoto (DPAD): ATIVADO");
-        appendLog("[*] Modo Root / Admin Integrado (Kingo ROOT + iRoot + ADB loopback)");
+        appendLog("[*] Suporte Amplo: Android 4.4 KitKat (API 19) até Android 14");
+        appendLog("[*] Suporte a Controle Remoto (DPAD 100% Funcional)");
+        appendLog("[*] Modo Root / Admin Integrado (Kingo ROOT + iRoot + Loopback ADB)");
         appendLog("[*] Matriz Quádrupla DNS (1.1.1.1, 9.9.9.10, 8.8.8.8, 1.0.0.1)");
         appendLog("[*] Fuso Fixo GMT-03:00 (Brasília Sem Horário de Verão)");
         appendLog("[*] Motor Triplo de Purga: Disable + AppOps + Neutralizer");
@@ -133,6 +143,139 @@ public class MainActivity extends Activity {
         });
     }
 
+    private void checkFirstRunPermissions() {
+        SharedPreferences prefs = getSharedPreferences("tvbox_prefs", MODE_PRIVATE);
+        boolean alreadyPrompted = prefs.getBoolean("first_run_perms_done", false);
+        boolean hasStorage = SystemSettingsHelper.hasStorageWritePermission(this);
+        boolean hasSysWrite = SystemSettingsHelper.isSystemWriteGranted(this);
+
+        if (!alreadyPrompted || !hasStorage || !hasSysWrite) {
+            if (firstRunPromptShown) return;
+            firstRunPromptShown = true;
+
+            List<String> pending = new ArrayList<String>();
+            if (!hasStorage) pending.add("Permissão de Escrita no Armazenamento (gravação de cache e APKs)");
+            if (!hasSysWrite) pending.add("Permissão de Modificar Configurações do Sistema (fuso/DNS)");
+            if (!SystemSettingsHelper.canRequestPackageInstalls(this)) pending.add("Instalar apps desconhecidos (para Kingo/iRoot)");
+            if (!SystemSettingsHelper.isBatteryOptimizationIgnored(this)) pending.add("Ignorar economia de bateria");
+
+            appendLog("\n[!] Permissões de escrita pendentes detectadas na inicialização:");
+            for (String p : pending) {
+                appendLog("    -> " + p);
+            }
+
+            try {
+                AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this, AlertDialog.THEME_DEVICE_DEFAULT_DARK);
+                builder.setTitle("1ª Execução: Liberar Permissões de Escrita");
+                builder.setMessage("Para que o TVBOX Optimizer possa gravar as configurações de buffer, fuso horário, extrair e instalar os utilitários de Root, libere as permissões de escrita:\n\n" +
+                        buildPendingListBullet(pending) +
+                        "\n\nClique em 'CONCEDER PERMISSÕES' para liberar.");
+                builder.setCancelable(false);
+                builder.setPositiveButton("1. CONCEDER PERMISSÕES", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        prefs.edit().putBoolean("first_run_perms_done", true).apply();
+                        executePermissionGrantSequence();
+                    }
+                });
+                builder.setNegativeButton("Depois", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        prefs.edit().putBoolean("first_run_perms_done", true).apply();
+                        dialog.dismiss();
+                        btnRootAdmin.requestFocus();
+                    }
+                });
+                builder.show();
+            } catch (Exception ignored) {
+                executePermissionGrantSequence();
+            }
+        }
+    }
+
+    private String buildPendingListBullet(List<String> list) {
+        StringBuilder sb = new StringBuilder();
+        for (String item : list) {
+            sb.append("• ").append(item).append("\n");
+        }
+        return sb.toString().trim();
+    }
+
+    private void executePermissionGrantSequence() {
+        appendLog("[RUN] Disparando solicitações de permissão de escrita...");
+
+        // 1. Permissão de Escrita no Armazenamento (Runtime API 23+)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            List<String> needed = new ArrayList<String>();
+            if (checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+                needed.add(Manifest.permission.WRITE_EXTERNAL_STORAGE);
+            }
+            if (checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+                needed.add(Manifest.permission.READ_EXTERNAL_STORAGE);
+            }
+            if (!needed.isEmpty()) {
+                appendLog("[?] Solicitando permissão de escrita no disco (WRITE_EXTERNAL_STORAGE)...");
+                requestPermissions(needed.toArray(new String[0]), REQ_PERMISSIONS);
+                return;
+            }
+        }
+
+        // 2. Permissão de Gravação em Configurações do Sistema (WRITE_SETTINGS API 23+)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if (!SystemSettingsHelper.isSystemWriteGranted(this)) {
+                appendLog("[?] Abrindo tela de permissão para modificar configurações do sistema...");
+                SystemSettingsHelper.requestWriteSettingsPermission(this);
+                return;
+            }
+        }
+
+        // 3. Android 11+ Acesso total aos arquivos
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            if (!Environment.isExternalStorageManager()) {
+                appendLog("[?] Solicitando acesso total a arquivos (MANAGE_EXTERNAL_STORAGE)...");
+                SystemSettingsHelper.requestStorageAllFilesPermission(this);
+                return;
+            }
+        }
+
+        // 4. Instalar apps desconhecidos
+        if (!SystemSettingsHelper.canRequestPackageInstalls(this)) {
+            appendLog("[?] Solicitando permissão de instalar APKs de terceiros...");
+            SystemSettingsHelper.requestUnknownSourcesPermission(this);
+            return;
+        }
+
+        appendLog("[OK] Todas as permissões de escrita e sistema estão prontas!");
+        btnRootAdmin.requestFocus();
+        refreshPrivilegeTelemetry();
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == REQ_PERMISSIONS) {
+            boolean granted = true;
+            for (int res : grantResults) {
+                if (res != PackageManager.PERMISSION_GRANTED) {
+                    granted = false;
+                    break;
+                }
+            }
+            if (granted) {
+                appendLog("[OK] Permissão de escrita no armazenamento CONCEDIDA com sucesso!");
+            } else {
+                appendLog("[AVISO] Permissão de armazenamento foi recusada pelo sistema.");
+            }
+
+            // Prossegue na fila de permissões caso falte WRITE_SETTINGS
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !SystemSettingsHelper.isSystemWriteGranted(this)) {
+                SystemSettingsHelper.requestWriteSettingsPermission(this);
+            }
+
+            refreshPrivilegeTelemetry();
+        }
+    }
+
     private void refreshPrivilegeTelemetry() {
         new Thread(new Runnable() {
             @Override
@@ -140,7 +283,8 @@ public class MainActivity extends Activity {
                 final boolean isRooted = RootInstallerHelper.isDeviceRooted();
                 final boolean isDev = DeveloperModeHelper.isDeveloperOptionsEnabled(MainActivity.this);
                 final boolean isAdb = DeveloperModeHelper.isAdbEnabled(MainActivity.this);
-                final boolean hasAllAdmin = SystemSettingsHelper.hasAllAdminPermissions(MainActivity.this);
+                final boolean hasStorage = SystemSettingsHelper.hasStorageWritePermission(MainActivity.this);
+                final boolean hasSysWrite = SystemSettingsHelper.isSystemWriteGranted(MainActivity.this);
 
                 rootOrAdminVerified = isRooted || (isDev && isAdb);
 
@@ -153,11 +297,11 @@ public class MainActivity extends Activity {
                         } else if (isAdb || isDev) {
                             tvStatusBadge.setText("[⚙️ MODO DEV/ADB ATIVO ✅]");
                             tvStatusBadge.setTextColor(Color.parseColor("#00E5FF"));
-                        } else if (hasAllAdmin) {
-                            tvStatusBadge.setText("[🛡️ ADMIN CONCEDIDO]");
+                        } else if (hasStorage && hasSysWrite) {
+                            tvStatusBadge.setText("[✍️ ESCRITA LIBERADA]");
                             tvStatusBadge.setTextColor(Color.parseColor("#FFD700"));
                         } else {
-                            tvStatusBadge.setText("[⚠️ ROOT/ADMIN PENDENTE]");
+                            tvStatusBadge.setText("[⚠️ ESCRITA/ROOT PENDENTE]");
                             tvStatusBadge.setTextColor(Color.parseColor("#FF5252"));
                         }
                     }
@@ -168,12 +312,20 @@ public class MainActivity extends Activity {
 
     private void handleStep1RootAdmin() {
         appendLog("\n--- [PASSO 1/3] VERIFICAÇÃO E ATIVAÇÃO DE ROOT / MODO ADMINISTRADOR ---");
+
+        // Se ainda faltar permissão de escrita, solicita antes de extrair arquivos
+        if (!SystemSettingsHelper.hasStorageWritePermission(this)) {
+            appendLog("[!] Permissão de escrita necessária para extrair ferramentas de Root.");
+            executePermissionGrantSequence();
+            return;
+        }
+
         isBusy = true;
 
         new Thread(new Runnable() {
             @Override
             public void run() {
-                // 1. Tentar forçar permissões administrativas via shell / loopback
+                // Tenta forçar permissões administrativas via shell / loopback
                 DeveloperModeHelper.configureAdminPersistence(MainActivity.this, new DeveloperModeHelper.LogCallback() {
                     @Override
                     public void log(String message) {
@@ -335,7 +487,6 @@ public class MainActivity extends Activity {
     }
 
     private void handleStep2Optimize() {
-        // Se ainda não houver Root nem modo desenvolvedor ativo, pergunta antes
         if (!rootOrAdminVerified && !RootInstallerHelper.isDeviceRooted()) {
             AlertDialog.Builder warnDialog = new AlertDialog.Builder(MainActivity.this, AlertDialog.THEME_DEVICE_DEFAULT_DARK);
             warnDialog.setTitle("Modo Administrador / Root");
@@ -420,44 +571,6 @@ public class MainActivity extends Activity {
             builder.create().show();
         } catch (Exception e) {
             appendLog("[!] FINALIZADO. Clique em [ 🔄 3. REINICIAR ] para concluir.");
-        }
-    }
-
-    private void checkAndRequestAllPermissions() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            List<String> needed = new ArrayList<String>();
-            if (checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-                needed.add(Manifest.permission.WRITE_EXTERNAL_STORAGE);
-            }
-            if (checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-                needed.add(Manifest.permission.READ_EXTERNAL_STORAGE);
-            }
-            if (!needed.isEmpty()) {
-                appendLog("[?] Solicitando permissão de armazenamento...");
-                requestPermissions(needed.toArray(new String[0]), REQ_PERMISSIONS);
-            }
-        }
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            try {
-                if (!Environment.isExternalStorageManager()) {
-                    Intent intent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
-                    intent.setData(Uri.parse("package:" + getPackageName()));
-                    startActivity(intent);
-                }
-            } catch (Exception ignored) {}
-        }
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            if (!SystemSettingsHelper.canRequestPackageInstalls(this)) {
-                appendLog("[?] Conceda permissão de 'Instalar apps desconhecidos' para permitir os utilitários de Root.");
-            }
-        }
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            if (!SystemSettingsHelper.isBatteryOptimizationIgnored(this)) {
-                SystemSettingsHelper.requestIgnoreBatteryOptimization(this);
-            }
         }
     }
 

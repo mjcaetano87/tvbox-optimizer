@@ -5,7 +5,7 @@ param(
 )
 
 Write-Host "==========================================================" -ForegroundColor Cyan
-Write-Host "   BUILD SCRIPT - TVBOX OPTIMIZER APK (v3.0-ROOT)         " -ForegroundColor Yellow
+Write-Host "   BUILD SCRIPT - TVBOX OPTIMIZER APK (v3.1-COMPAT)       " -ForegroundColor Yellow
 Write-Host "==========================================================" -ForegroundColor Cyan
 
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Definition
@@ -120,20 +120,20 @@ Pop-Location
 & $zipalign.FullName -f 4 $unalignedApk $alignedApk
 if ($LASTEXITCODE -ne 0) { Write-Error "zipalign failed"; exit 1 }
 
-# Step E: Sign APK with keystore
-Write-Host "[*] [5/5] Signing APK with debug keystore..." -ForegroundColor Cyan
+# Step E: Sign APK with keystore with full v1/v2/v3 support for Android 4.4+
+Write-Host "[*] [5/5] Signing APK with debug keystore (v1 + v2 + v3 enabled)..." -ForegroundColor Cyan
 $keystore = Join-Path $binDir "debug.keystore"
 if (-not (Test-Path $keystore)) {
     & "$JdkPath\bin\keytool.exe" -genkey -v -keystore $keystore -alias tvbox -keyalg RSA -keysize 2048 -validity 10000 -storepass android -keypass android -dname "CN=TVBox, OU=Optimizer, O=IPTV, C=US" | Out-Null
 }
-& $apksigner.FullName sign --ks $keystore --ks-pass pass:android --key-pass pass:android --out $outputApk $alignedApk
-& $apksigner.FullName verify $outputApk
+& $apksigner.FullName sign --ks $keystore --ks-pass pass:android --key-pass pass:android --min-sdk-version 19 --v1-signing-enabled true --v2-signing-enabled true --v3-signing-enabled true --out $outputApk $alignedApk
+& $apksigner.FullName verify --verbose $outputApk
 
 if ($LASTEXITCODE -eq 0 -and (Test-Path $outputApk)) {
     $apkItem = Get-Item $outputApk
     $sizeMb = [math]::Round($apkItem.Length / 1MB, 2)
     Write-Host "`n==========================================================" -ForegroundColor Cyan
-    Write-Host "   BUILD SUCCESSFUL! (v3.0-ROOT Standalone)               " -ForegroundColor Green
+    Write-Host "   BUILD SUCCESSFUL! (v3.1-COMPAT Standalone)             " -ForegroundColor Green
     Write-Host "   APK Output: $outputApk ($sizeMb MB)                   " -ForegroundColor Green
     Write-Host "==========================================================" -ForegroundColor Cyan
 } else {
