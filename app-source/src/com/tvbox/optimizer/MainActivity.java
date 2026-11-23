@@ -9,6 +9,7 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
+import android.graphics.Color;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -20,9 +21,6 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.ScrollView;
 import android.widget.TextView;
-import java.io.BufferedReader;
-import java.io.DataOutputStream;
-import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -31,49 +29,70 @@ import java.util.Set;
 
 public class MainActivity extends Activity {
 
+    private TextView tvTitle;
+    private TextView tvStatusBadge;
     private TextView tvLogs;
     private TextView tvGithub;
     private ScrollView scrollLogs;
+    private Button btnRootAdmin;
     private Button btnOptimize;
     private Button btnReboot;
+
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final StringBuilder logBuilder = new StringBuilder();
     private static final int REQ_PERMISSIONS = 1001;
+
+    private boolean isBusy = false;
+    private boolean rootOrAdminVerified = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        tvTitle = (TextView) findViewById(R.id.tvTitle);
+        tvStatusBadge = (TextView) findViewById(R.id.tvStatusBadge);
         tvLogs = (TextView) findViewById(R.id.tvLogs);
         tvGithub = (TextView) findViewById(R.id.tvGithub);
         scrollLogs = (ScrollView) findViewById(R.id.scrollLogs);
+        btnRootAdmin = (Button) findViewById(R.id.btnRootAdmin);
         btnOptimize = (Button) findViewById(R.id.btnOptimize);
         btnReboot = (Button) findViewById(R.id.btnReboot);
 
-        // Foco inicial no DPAD
-        btnOptimize.setFocusable(true);
-        btnOptimize.setFocusableInTouchMode(true);
-        btnOptimize.requestFocus();
+        // Foco inicial estratégico no DPAD: Passo 1 (ROOT / ADMIN)
+        btnRootAdmin.setFocusable(true);
+        btnRootAdmin.setFocusableInTouchMode(true);
+        btnRootAdmin.requestFocus();
 
-        appendLog("=================================================");
-        appendLog("   TVBOX TERMINAL OPTIMIZER - ANTI-BADBOX v2.4   ");
-        appendLog("=================================================");
-        appendLog("★ GitHub: https://github.com/mjcaetano87/tvbox-optimizer");
+        printInitialBanner();
+        setupListeners();
+        checkAndRequestAllPermissions();
+        refreshPrivilegeTelemetry();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        refreshPrivilegeTelemetry();
+    }
+
+    private void printInitialBanner() {
+        appendLog("==================================================================");
+        appendLog("   TVBOX OPTIMIZER v3.0-ROOT - ANTI-BADBOX & TUNING IPTV          ");
+        appendLog("   Ordem: 1. ROOT/ADMIN  ->  2. OTIMIZAR  ->  3. REINICIAR        ");
+        appendLog("==================================================================");
+        appendLog("★ GitHub Oficial: https://github.com/mjcaetano87/tvbox-optimizer");
         appendLog("★ Desenvolvido por: jesséx10");
-        appendLog("-------------------------------------------------");
-        appendLog("⚠️  AVISO IMPORTANTE / ATTENTION:");
-        appendLog("O MODO DESENVOLVEDOR (DEPURACAO USB) DEVE ESTAR");
-        appendLog("ATIVO NESTA TV BOX PARA OTIMIZACAO COMPLETA!");
-        appendLog("-------------------------------------------------");
+        appendLog("------------------------------------------------------------------");
         appendLog("[*] Suporte a Controle Remoto (DPAD): ATIVADO");
-        appendLog("[*] Motor Triplo de Purga: Disable + AppOps + Neutralizer");
+        appendLog("[*] Modo Root / Admin Integrado (Kingo ROOT + iRoot + ADB loopback)");
         appendLog("[*] Matriz Quádrupla DNS (1.1.1.1, 9.9.9.10, 8.8.8.8, 1.0.0.1)");
         appendLog("[*] Fuso Fixo GMT-03:00 (Brasília Sem Horário de Verão)");
-        appendLog("[*] Verificando privilégios e permissões de sistema...");
+        appendLog("[*] Motor Triplo de Purga: Disable + AppOps + Neutralizer");
+        appendLog("------------------------------------------------------------------");
+    }
 
-        checkAndRequestAllPermissions();
-
+    private void setupListeners() {
         if (tvGithub != null) {
             tvGithub.setOnClickListener(new View.OnClickListener() {
                 @Override
@@ -86,61 +105,321 @@ public class MainActivity extends Activity {
             });
         }
 
+        btnRootAdmin.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (!isBusy) {
+                    handleStep1RootAdmin();
+                }
+            }
+        });
+
         btnOptimize.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                btnOptimize.setEnabled(false);
-                new Thread(new Runnable() {
-                    @Override
-                    public void run() {
-                        runOptimization();
-                        handler.post(new Runnable() {
-                            @Override
-                            public void run() {
-                                btnOptimize.setEnabled(true);
-                                btnOptimize.requestFocus();
-                                showFinishRebootDialog();
-                            }
-                        });
-                    }
-                }).start();
+                if (!isBusy) {
+                    handleStep2Optimize();
+                }
             }
         });
 
         btnReboot.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                appendLog("\n[!] Enviando comando de reboot para a TV Box...");
-                execCommand("reboot");
+                if (!isBusy) {
+                    handleStep3Reboot();
+                }
             }
         });
+    }
+
+    private void refreshPrivilegeTelemetry() {
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                final boolean isRooted = RootInstallerHelper.isDeviceRooted();
+                final boolean isDev = DeveloperModeHelper.isDeveloperOptionsEnabled(MainActivity.this);
+                final boolean isAdb = DeveloperModeHelper.isAdbEnabled(MainActivity.this);
+                final boolean hasAllAdmin = SystemSettingsHelper.hasAllAdminPermissions(MainActivity.this);
+
+                rootOrAdminVerified = isRooted || (isDev && isAdb);
+
+                handler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (isRooted) {
+                            tvStatusBadge.setText("[👑 ROOT UID=0 ATIVO ✅]");
+                            tvStatusBadge.setTextColor(Color.parseColor("#39FF14"));
+                        } else if (isAdb || isDev) {
+                            tvStatusBadge.setText("[⚙️ MODO DEV/ADB ATIVO ✅]");
+                            tvStatusBadge.setTextColor(Color.parseColor("#00E5FF"));
+                        } else if (hasAllAdmin) {
+                            tvStatusBadge.setText("[🛡️ ADMIN CONCEDIDO]");
+                            tvStatusBadge.setTextColor(Color.parseColor("#FFD700"));
+                        } else {
+                            tvStatusBadge.setText("[⚠️ ROOT/ADMIN PENDENTE]");
+                            tvStatusBadge.setTextColor(Color.parseColor("#FF5252"));
+                        }
+                    }
+                });
+            }
+        }).start();
+    }
+
+    private void handleStep1RootAdmin() {
+        appendLog("\n--- [PASSO 1/3] VERIFICAÇÃO E ATIVAÇÃO DE ROOT / MODO ADMINISTRADOR ---");
+        isBusy = true;
+
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                // 1. Tentar forçar permissões administrativas via shell / loopback
+                DeveloperModeHelper.configureAdminPersistence(MainActivity.this, new DeveloperModeHelper.LogCallback() {
+                    @Override
+                    public void log(String message) {
+                        appendLog(message);
+                    }
+                });
+
+                final boolean isRooted = RootInstallerHelper.isDeviceRooted();
+                final boolean isKingo = RootInstallerHelper.isKingoInstalled(MainActivity.this);
+                final boolean isIRoot = RootInstallerHelper.isIRootInstalled(MainActivity.this);
+
+                handler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        isBusy = false;
+                        refreshPrivilegeTelemetry();
+
+                        if (isRooted) {
+                            appendLog("[OK] ROOT DETECTADO COM SUCESSO (su uid=0)!");
+                            appendLog(">>> Privilégios máximos de superusuário liberados.");
+                            appendLog(">>> Avançando foco para o [ 🚀 2. OTIMIZAR ]...");
+                            btnOptimize.requestFocus();
+                            return;
+                        }
+
+                        appendLog("[INFO] Dispositivo ainda sem Root nativo (su).");
+                        appendLog("[INFO] Escolha abaixo uma ferramenta de Root embutida para aplicar o Root na TV Box:");
+
+                        showRootInstallationMenu(isKingo, isIRoot);
+                    }
+                });
+            }
+        }).start();
+    }
+
+    private void showRootInstallationMenu(final boolean kingoInstalled, final boolean irootInstalled) {
+        String option1 = kingoInstalled ? "1. Abrir Kingo ROOT (Já instalado)" : "1. Instalar Kingo ROOT (Embutido)";
+        String option2 = irootInstalled ? "2. Abrir iRoot (Já instalado)" : "2. Instalar iRoot (Embutido)";
+        String[] options = new String[] {
+            option1,
+            option2,
+            "3. Instalar Ambos os Utilitários de Root",
+            "4. Abrir Opções do Desenvolvedor (Ativar Depuração ADB)",
+            "5. Já apliquei Root / Avançar para Otimização"
+        };
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this, AlertDialog.THEME_DEVICE_DEFAULT_DARK);
+        builder.setTitle("Passo 1: Ativação de ROOT & Administrador");
+        builder.setItems(options, new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                switch (which) {
+                    case 0:
+                        if (kingoInstalled) {
+                            RootInstallerHelper.openRootApp(MainActivity.this, RootInstallerHelper.KINGO_PACKAGE, "Kingo ROOT", new RootInstallerHelper.LogCallback() {
+                                @Override public void log(String msg) { appendLog(msg); }
+                            });
+                        } else {
+                            installRootAsset(RootInstallerHelper.KINGO_ASSET, "Kingo ROOT", RootInstallerHelper.KINGO_PACKAGE);
+                        }
+                        break;
+                    case 1:
+                        if (irootInstalled) {
+                            RootInstallerHelper.openRootApp(MainActivity.this, RootInstallerHelper.IROOT_PACKAGE, "iRoot", new RootInstallerHelper.LogCallback() {
+                                @Override public void log(String msg) { appendLog(msg); }
+                            });
+                        } else {
+                            installRootAsset(RootInstallerHelper.IROOT_ASSET, "iRoot", RootInstallerHelper.IROOT_PACKAGE);
+                        }
+                        break;
+                    case 2:
+                        installBothRootAssets();
+                        break;
+                    case 3:
+                        appendLog("[USER] Abrindo Opções do Desenvolvedor...");
+                        DeveloperModeHelper.openDeveloperSettings(MainActivity.this);
+                        break;
+                    case 4:
+                        appendLog("[INFO] Prosseguindo para o Passo 2: Otimização IPTV.");
+                        btnOptimize.requestFocus();
+                        break;
+                }
+            }
+        });
+        builder.setNegativeButton("Fechar", null);
+        builder.show();
+    }
+
+    private void installRootAsset(final String assetPath, final String appLabel, final String packageName) {
+        if (!SystemSettingsHelper.canRequestPackageInstalls(this)) {
+            appendLog("[!] Permissão 'Fontes desconhecidas' pendente. Conceda para instalar " + appLabel + ".");
+            SystemSettingsHelper.requestUnknownSourcesPermission(this);
+            return;
+        }
+
+        isBusy = true;
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                boolean ok = RootInstallerHelper.installRootApp(
+                    MainActivity.this,
+                    assetPath,
+                    appLabel,
+                    new RootInstallerHelper.LogCallback() {
+                        @Override public void log(String message) { appendLog(message); }
+                    }
+                );
+                isBusy = false;
+                handler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        refreshPrivilegeTelemetry();
+                        btnOptimize.requestFocus();
+                    }
+                });
+            }
+        }).start();
+    }
+
+    private void installBothRootAssets() {
+        if (!SystemSettingsHelper.canRequestPackageInstalls(this)) {
+            appendLog("[!] Libere 'Fontes desconhecidas' antes de prosseguir com a instalação.");
+            SystemSettingsHelper.requestUnknownSourcesPermission(this);
+            return;
+        }
+
+        isBusy = true;
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                if (!RootInstallerHelper.isKingoInstalled(MainActivity.this)) {
+                    RootInstallerHelper.installRootApp(MainActivity.this, RootInstallerHelper.KINGO_ASSET, "Kingo ROOT", new RootInstallerHelper.LogCallback() {
+                        @Override public void log(String msg) { appendLog(msg); }
+                    });
+                    try { Thread.sleep(1200); } catch (InterruptedException ignored) {}
+                } else {
+                    appendLog("[OK] Kingo ROOT já está instalado.");
+                }
+
+                if (!RootInstallerHelper.isIRootInstalled(MainActivity.this)) {
+                    RootInstallerHelper.installRootApp(MainActivity.this, RootInstallerHelper.IROOT_ASSET, "iRoot", new RootInstallerHelper.LogCallback() {
+                        @Override public void log(String msg) { appendLog(msg); }
+                    });
+                } else {
+                    appendLog("[OK] iRoot já está instalado.");
+                }
+
+                appendLog("[OK] Pacotes de Root processados! Após aplicar o Root de 1-clique, use o botão [ 🚀 2. OTIMIZAR ].");
+                isBusy = false;
+                handler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        refreshPrivilegeTelemetry();
+                        btnOptimize.requestFocus();
+                    }
+                });
+            }
+        }).start();
+    }
+
+    private void handleStep2Optimize() {
+        // Se ainda não houver Root nem modo desenvolvedor ativo, pergunta antes
+        if (!rootOrAdminVerified && !RootInstallerHelper.isDeviceRooted()) {
+            AlertDialog.Builder warnDialog = new AlertDialog.Builder(MainActivity.this, AlertDialog.THEME_DEVICE_DEFAULT_DARK);
+            warnDialog.setTitle("Modo Administrador / Root");
+            warnDialog.setMessage("O Modo Root ou Depuração ADB ainda não foram confirmados nesta TV Box!\n\nRecomendamos executar o Passo 1 [ 👑 ROOT / ADMIN ] primeiro para que o app tenha permissão total para eliminar mineradores do sistema e fixar os 4 DNS.\n\nDeseja verificar o Root primeiro?");
+            warnDialog.setPositiveButton("1. Ir para ROOT / ADMIN", new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
+                    btnRootAdmin.requestFocus();
+                    handleStep1RootAdmin();
+                }
+            });
+            warnDialog.setNegativeButton("Otimizar Mesmo Assim", new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
+                    dialog.dismiss();
+                    startOptimizationProcess();
+                }
+            });
+            warnDialog.show();
+            return;
+        }
+
+        startOptimizationProcess();
+    }
+
+    private void startOptimizationProcess() {
+        btnOptimize.setEnabled(false);
+        isBusy = true;
+
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                runOptimization();
+                handler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        btnOptimize.setEnabled(true);
+                        isBusy = false;
+                        btnReboot.requestFocus();
+                        showFinishRebootDialog();
+                    }
+                });
+            }
+        }).start();
+    }
+
+    private void handleStep3Reboot() {
+        appendLog("\n[SYS] Solicitando reinicialização da TV Box...");
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                DeveloperModeHelper.rebootDevice(MainActivity.this, new DeveloperModeHelper.LogCallback() {
+                    @Override
+                    public void log(String message) {
+                        appendLog(message);
+                    }
+                });
+            }
+        }).start();
     }
 
     private void showFinishRebootDialog() {
         try {
             AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this, AlertDialog.THEME_DEVICE_DEFAULT_DARK);
-            builder.setTitle("FINALIZADO");
-            builder.setMessage("Todas as otimizações, buffers de streaming, matriz de 4 DNS e a purga contra BadBox/Mineradores foram concluídos!\n\nDeseja reiniciar agora?");
+            builder.setTitle("OTIMIZAÇÃO CONCLUÍDA!");
+            builder.setMessage("Todas as otimizações, buffers de streaming, matriz de 4 DNS e a purga contra BadBox/Mineradores foram concluídos com sucesso!\n\nDeseja reiniciar agora para aplicar todas as diretivas de hardware?");
             builder.setCancelable(false);
             builder.setPositiveButton("Sim, Reiniciar", new DialogInterface.OnClickListener() {
                 @Override
                 public void onClick(DialogInterface dialog, int which) {
-                    appendLog("\n[!] Reiniciando a TV Box agora...");
-                    execCommand("reboot");
+                    handleStep3Reboot();
                 }
             });
             builder.setNegativeButton("Depois", new DialogInterface.OnClickListener() {
                 @Override
                 public void onClick(DialogInterface dialog, int which) {
                     dialog.dismiss();
-                    appendLog("\n[*] Reinicialização adiada pelo usuário.");
-                    btnOptimize.requestFocus();
+                    appendLog("\n[*] Reinicialização adiada. Use [ 🔄 3. REINICIAR ] quando desejar.");
+                    btnReboot.requestFocus();
                 }
             });
-            AlertDialog alert = builder.create();
-            alert.show();
+            builder.create().show();
         } catch (Exception e) {
-            appendLog("[!] FINALIZADO. Deseja reiniciar agora? (Clique no botão Reiniciar)");
+            appendLog("[!] FINALIZADO. Clique em [ 🔄 3. REINICIAR ] para concluir.");
         }
     }
 
@@ -154,17 +433,14 @@ public class MainActivity extends Activity {
                 needed.add(Manifest.permission.READ_EXTERNAL_STORAGE);
             }
             if (!needed.isEmpty()) {
-                appendLog("[?] Solicitando permissão de LEITURA e GRAVAÇÃO...");
+                appendLog("[?] Solicitando permissão de armazenamento...");
                 requestPermissions(needed.toArray(new String[0]), REQ_PERMISSIONS);
-            } else {
-                appendLog("[OK] Permissão de gravação no armazenamento: CONCEDIDA");
             }
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             try {
                 if (!Environment.isExternalStorageManager()) {
-                    appendLog("[?] Solicitando acesso total aos arquivos (MANAGE_EXTERNAL_STORAGE)...");
                     Intent intent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
                     intent.setData(Uri.parse("package:" + getPackageName()));
                     startActivity(intent);
@@ -173,39 +449,16 @@ public class MainActivity extends Activity {
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            try {
-                if (!getPackageManager().canRequestPackageInstalls()) {
-                    appendLog("[?] Solicitando permissão para Instalação de APKs...");
-                    Intent intent = new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES);
-                    intent.setData(Uri.parse("package:" + getPackageName()));
-                    startActivity(intent);
-                } else {
-                    appendLog("[OK] Permissão de instalação de pacotes: CONCEDIDA");
-                }
-            } catch (Exception ignored) {}
+            if (!SystemSettingsHelper.canRequestPackageInstalls(this)) {
+                appendLog("[?] Conceda permissão de 'Instalar apps desconhecidos' para permitir os utilitários de Root.");
+            }
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            try {
-                if (!Settings.System.canWrite(this)) {
-                    appendLog("[?] Solicitando permissão WRITE_SETTINGS...");
-                    Intent intent = new Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS);
-                    intent.setData(Uri.parse("package:" + getPackageName()));
-                    startActivity(intent);
-                } else {
-                    appendLog("[OK] Permissão de alterar configurações do sistema: CONCEDIDA");
-                }
-            } catch (Exception ignored) {}
+            if (!SystemSettingsHelper.isBatteryOptimizationIgnored(this)) {
+                SystemSettingsHelper.requestIgnoreBatteryOptimization(this);
+            }
         }
-
-        String suTest = execCommand("id");
-        if (suTest.contains("uid=0")) {
-            appendLog("[ROOT] Acesso de superusuário (ROOT UID=0): ATIVO!");
-        } else {
-            appendLog("[INFO] Modo padrão de usuário. Usando engine ADB/Shell...");
-        }
-
-        appendLog("\n[*] Use o DPAD do controle remoto e clique em [ 🚀 OTIMIZAR ]");
     }
 
     private void appendLog(final String msg) {
@@ -313,14 +566,12 @@ public class MainActivity extends Activity {
 
         // 6. Varredura Heurística Profunda & Purga Tripla (BadBox, Mineradores, Droppers)
         appendLog("\n[*] [6/6] Purga Heuristica Profunda (Droppers, Mineradores e Adware)...");
-        
-        // Coleta todos os pacotes e seus nomes visuais
+
         PackageManager pm = getPackageManager();
         List<ApplicationInfo> apps = pm.getInstalledApplications(PackageManager.GET_META_DATA);
         Set<String> installedSet = new HashSet<String>();
         Set<String> targetsToNeutralize = new HashSet<String>();
 
-        // Palavras-chave dos mineradores e adwares detectados
         String[] suspiciousLabels = new String[] {
             "netservice", "system guard", "systemguard", "movaplay", "nova tv", "novatv",
             "rsshub", "setting assistant", "settingassistant", "snf launcher", "snflauncher",
@@ -336,7 +587,6 @@ public class MainActivity extends Activity {
                 continue;
             }
 
-            // Checa pelo nome do pacote
             String lowerPkg = pkg.toLowerCase();
             for (String kw : suspiciousLabels) {
                 String cleanKw = kw.replace(" ", "");
@@ -346,7 +596,6 @@ public class MainActivity extends Activity {
                 }
             }
 
-            // Checa pelo rótulo visual (Nome do aplicativo que aparece na tela da TV)
             try {
                 CharSequence label = pm.getApplicationLabel(ai);
                 if (label != null) {
@@ -361,28 +610,23 @@ public class MainActivity extends Activity {
             } catch (Exception ignored) {}
         }
 
-        // Adiciona alvos conhecidos estáticos
         targetsToNeutralize.addAll(getUadTargetPackages());
 
         int neutralizedCount = 0;
         for (String pkg : targetsToNeutralize) {
             if (installedSet.contains(pkg)) {
-                // TÉCNICA TRIPLA CONTRA REINSTALAÇÃO / PERSISTÊNCIA:
-                
-                // 1. Mata imediatamente qualquer processo e bloqueia em AppOps
+                // TÉCNICA TRIPLA COM PODER DE ROOT / ADMIN CONTRA PERSISTÊNCIA:
                 execCommand("am force-stop " + pkg);
                 execCommand("cmd appops set " + pkg + " RUN_IN_BACKGROUND ignore");
                 execCommand("cmd appops set " + pkg + " RUN_ANY_IN_BACKGROUND ignore");
                 execCommand("cmd appops set " + pkg + " SYSTEM_ALERT_WINDOW ignore");
                 execCommand("cmd appops set " + pkg + " WRITE_SETTINGS ignore");
 
-                // 2. Desativa para o usuário atual
                 execCommand("pm disable-user --user 0 " + pkg);
                 execCommand("pm disable " + pkg);
 
-                // 3. Oculta e desinstala
                 execCommand("pm hide " + pkg);
-                String unRes = execCommand("pm uninstall -k --user 0 " + pkg);
+                execCommand("pm uninstall -k --user 0 " + pkg);
                 execCommand("pm clear " + pkg);
 
                 neutralizedCount++;
@@ -494,39 +738,13 @@ public class MainActivity extends Activity {
     }
 
     private String execCommand(String command) {
-        StringBuilder output = new StringBuilder();
-        Process process = null;
-        DataOutputStream os = null;
-        BufferedReader osRes = null;
-        try {
-            try {
-                process = Runtime.getRuntime().exec("su");
-                os = new DataOutputStream(process.getOutputStream());
-                osRes = new BufferedReader(new InputStreamReader(process.getInputStream()));
-                os.writeBytes(command + "\n");
-                os.writeBytes("exit\n");
-                os.flush();
-                String line;
-                while ((line = osRes.readLine()) != null) {
-                    output.append(line).append("\n");
-                }
-                process.waitFor();
-            } catch (Exception rootEx) {
-                process = Runtime.getRuntime().exec(command);
-                osRes = new BufferedReader(new InputStreamReader(process.getInputStream()));
-                String line;
-                while ((line = osRes.readLine()) != null) {
-                    output.append(line).append("\n");
-                }
-                process.waitFor();
+        if (ShellExecutor.hasSuBinary()) {
+            ShellExecutor.CommandResult res = ShellExecutor.runWithTimeout("su", command, 3000L);
+            if (res.success) {
+                return res.output;
             }
-        } catch (Exception e) {
-            output.append("Erro: ").append(e.getMessage());
-        } finally {
-            try { if (os != null) os.close(); } catch (Exception ignored) {}
-            try { if (osRes != null) osRes.close(); } catch (Exception ignored) {}
-            if (process != null) process.destroy();
         }
-        return output.toString();
+        ShellExecutor.CommandResult res = ShellExecutor.runWithTimeout("sh", command, 3000L);
+        return res.output;
     }
 }

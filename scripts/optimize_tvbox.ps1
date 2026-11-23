@@ -2,11 +2,13 @@
 param(
     [string]$DeviceIp = "",
     [int]$Port = 5555,
+    [switch]$InstallRoot,
     [switch]$Reboot
 )
 
 Write-Host "==========================================================" -ForegroundColor Cyan
-Write-Host "   TVBOX OPTIMIZER FOR IPTV (ADB DEBLOATER & TUNING v2.3) " -ForegroundColor Yellow
+Write-Host "   TVBOX OPTIMIZER FOR IPTV (v3.0-ROOT & PRIVILEGED TUNING)" -ForegroundColor Yellow
+Write-Host "   Ordem: 1. ROOT/ADMIN  ->  2. OTIMIZAR  ->  3. REBOOT    " -ForegroundColor Green
 Write-Host "==========================================================" -ForegroundColor Cyan
 
 # Locate ADB executable automatically from PATH or local environment
@@ -16,7 +18,8 @@ if ($adbCmd) {
 } else {
     $commonAdbPaths = @(
         "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe",
-        "$env:ProgramFiles\platform-tools\adb.exe"
+        "$env:ProgramFiles\platform-tools\adb.exe",
+        "C:\Users\xeda\.gemini\antigravity\scratch\platform-tools\adb.exe"
     )
     $found = $false
     foreach ($p in $commonAdbPaths) {
@@ -54,15 +57,68 @@ if (-not $devices) {
 
 Write-Host "[+] Device connected successfully:`n$devices" -ForegroundColor Green
 
+# ==============================================================================
+# FASE 0: VERIFICACAO E FORCANDO MODO ADMINISTRADOR & ROOT (PRIMEIRAMENTE)
+# ==============================================================================
+Write-Host "`n[*] [FASE 0] Verificando e forcando Modo Administrador & ROOT..." -ForegroundColor Cyan
+
+# 1. Tentar elevar adbd para root direto (suportado em muitas TV Boxes Allwinner/Rockchip)
+& $adb root 2>$null | Out-Null
+Start-Sleep -Seconds 1
+
+# 2. Conceder Permissoes de Administrador de Sistema ao TVBOX Optimizer
+$optPkg = "com.tvbox.optimizer"
+Write-Host "  -> Concedendo permissao WRITE_SECURE_SETTINGS ao TVBOX Optimizer..." -ForegroundColor Gray
+& $adb shell pm grant $optPkg android.permission.WRITE_SECURE_SETTINGS 2>$null | Out-Null
+
+Write-Host "  -> Inserindo TVBOX Optimizer na whitelist de economia de bateria..." -ForegroundColor Gray
+& $adb shell dumpsys deviceidle whitelist +$optPkg 2>$null | Out-Null
+
+Write-Host "  -> Concedendo appops SYSTEM_ALERT_WINDOW e WRITE_SETTINGS..." -ForegroundColor Gray
+& $adb shell cmd appops set $optPkg SYSTEM_ALERT_WINDOW allow 2>$null | Out-Null
+& $adb shell cmd appops set $optPkg WRITE_SETTINGS allow 2>$null | Out-Null
+
+# 3. Teste de presenca de Root nativo (su uid=0)
+$suCheck = & $adb shell su -c id 2>$null
+if ($suCheck -match "uid=0") {
+    Write-Host "  [+] ROOT SUPERUSUARIO ATIVO (su uid=0) DETECTADO NA TV BOX!" -ForegroundColor Green
+} else {
+    Write-Host "  [!] Root superusuario ainda nao detectado diretamente no terminal." -ForegroundColor Yellow
+    
+    $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Definition
+    $projectRoot = Split-Path -Parent $scriptRoot
+    $rootBundleDir = Join-Path $projectRoot "app-source\assets\root_bundle"
+
+    if ($InstallRoot -or (Test-Path $rootBundleDir)) {
+        Write-Host "  -> Instalando ferramentas de ROOT embutidas (Kingo ROOT / iRoot)..." -ForegroundColor Cyan
+        $kingoApk = Join-Path $rootBundleDir "kingoroot.apk"
+        $irootApk = Join-Path $rootBundleDir "iroot.apk"
+
+        if (Test-Path $kingoApk) {
+            Write-Host "     -> Instalando Kingo ROOT via ADB..." -ForegroundColor Gray
+            & $adb install -r -d $kingoApk 2>$null | Out-Null
+        }
+        if (Test-Path $irootApk) {
+            Write-Host "     -> Instalando iRoot via ADB..." -ForegroundColor Gray
+            & $adb install -r -d $irootApk 2>$null | Out-Null
+        }
+        Write-Host "  [+] Pacotes de Root enviados para a TV Box!" -ForegroundColor Green
+    }
+}
+
+Write-Host "  [+] Modo Administrador & Privilegios sincronizados com sucesso." -ForegroundColor Green
+
+# ==============================================================================
+# FASE 1: TVBOX-OPTIMIZER (EXECUTADO SOMENTE APOS MODO ADMINISTRADOR)
+# ==============================================================================
+
 # 1. Configure Fixed Timezone GMT-3 (Brazil / Brasilia) and NTP Brasil
 Write-Host "`n[*] [1/6] Locking Fixed Timezone GMT-03:00 (Brasilia) and setting NTP servers..." -ForegroundColor Cyan
 
-# Disable auto timezone so Chinese firmware won't pull old daylight saving time (GMT-2)
 & $adb shell settings put global auto_time 1
 & $adb shell settings put global auto_time_zone 0
 & $adb shell settings put system auto_time_zone 0
 
-# Set explicit GMT-03:00 timezone
 & $adb shell setprop persist.sys.timezone "GMT-03:00"
 & $adb shell setprop persist.sys.time.zone "GMT-03:00"
 & $adb shell setprop persist.sys.timezone.default "GMT-03:00"

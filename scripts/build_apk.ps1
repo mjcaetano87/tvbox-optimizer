@@ -5,7 +5,7 @@ param(
 )
 
 Write-Host "==========================================================" -ForegroundColor Cyan
-Write-Host "   BUILD SCRIPT - TVBOX OPTIMIZER APK (STANDALONE)        " -ForegroundColor Yellow
+Write-Host "   BUILD SCRIPT - TVBOX OPTIMIZER APK (v3.0-ROOT)         " -ForegroundColor Yellow
 Write-Host "==========================================================" -ForegroundColor Cyan
 
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Definition
@@ -88,14 +88,25 @@ $classFiles = Get-ChildItem -Path "$binDir" -Recurse -Filter "*.class" | ForEach
 & "$JdkPath\bin\java.exe" -cp $d8jar.FullName com.android.tools.r8.D8 --output $binDir $classFiles
 if ($LASTEXITCODE -ne 0) { Write-Error "D8 dexer failed"; exit 1 }
 
-# Step D: Package APK & add classes.dex
-Write-Host "[*] [4/5] Packaging APK resource archive..." -ForegroundColor Cyan
+# Step D: Package APK & add classes.dex and assets (root_bundle)
+Write-Host "[*] [4/5] Packaging APK resource and asset archive..." -ForegroundColor Cyan
 $unalignedApk = Join-Path $binDir "unaligned.apk"
 $alignedApk = Join-Path $binDir "aligned.apk"
-& $aapt.FullName package -f -M "$appDir\AndroidManifest.xml" -S "$appDir\res" -I $androidJar.FullName -F $unalignedApk
+$assetsDir = Join-Path $appDir "assets"
+
+$aaptArgs = @("package", "-f", "-M", "$appDir\AndroidManifest.xml", "-S", "$appDir\res", "-I", $androidJar.FullName)
+if (Test-Path $assetsDir) {
+    $aaptArgs += @("-A", $assetsDir)
+}
+$aaptArgs += @("-F", $unalignedApk)
+
+& $aapt.FullName @aaptArgs
+if ($LASTEXITCODE -ne 0) { Write-Error "aapt package unaligned failed"; exit 1 }
+
 Push-Location $binDir
 & $aapt.FullName add "unaligned.apk" "classes.dex" | Out-Null
 Pop-Location
+
 & $zipalign.FullName -f 4 $unalignedApk $alignedApk
 if ($LASTEXITCODE -ne 0) { Write-Error "zipalign failed"; exit 1 }
 
@@ -110,7 +121,7 @@ if (-not (Test-Path $keystore)) {
 
 if ($LASTEXITCODE -eq 0 -and (Test-Path $outputApk)) {
     Write-Host "`n==========================================================" -ForegroundColor Cyan
-    Write-Host "   BUILD SUCCESSFUL!                                      " -ForegroundColor Green
+    Write-Host "   BUILD SUCCESSFUL! (v3.0-ROOT Standalone)               " -ForegroundColor Green
     Write-Host "   APK Output: $outputApk                                 " -ForegroundColor Green
     Write-Host "==========================================================" -ForegroundColor Cyan
 } else {

@@ -4,15 +4,15 @@
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:background="#000000"
-    android:padding="16dp">
+    android:padding="14dp">
 
-    <!-- Top Navigation Header with DPAD focusable buttons -->
+    <!-- Top Status Bar & Navigation Header -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:layout_marginBottom="12dp">
+        android:layout_marginBottom="8dp">
 
         <TextView
             android:id="@+id/tvTitle"
@@ -20,43 +20,78 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="root@tvbox-optimizer:~# ./iptv-tuning"
-            android:textSize="18sp"
+            android:textSize="16sp"
             android:textStyle="bold"
             android:textColor="#39FF14"
             android:fontFamily="monospace" />
 
+        <TextView
+            android:id="@+id/tvStatusBadge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="[PRIVILÉGIOS: CHECANDO...]"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:textColor="#FFD700"
+            android:fontFamily="monospace"
+            android:padding="4dp" />
+    </LinearLayout>
+
+    <!-- Top DPAD Action Buttons -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="10dp">
+
+        <Button
+            android:id="@+id/btnRootAdmin"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:text="[ 👑 1. ROOT / ADMIN ]"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:background="@drawable/btn_root_selector"
+            android:textColor="#FFFFFF"
+            android:focusable="true"
+            android:focusableInTouchMode="true"
+            android:nextFocusRight="@+id/btnOptimize"
+            android:nextFocusDown="@+id/scrollLogs"
+            android:layout_marginRight="8dp" />
+
         <Button
             android:id="@+id/btnOptimize"
-            android:layout_width="wrap_content"
-            android:layout_height="52dp"
-            android:text="[ 🚀 OTIMIZAR ]"
-            android:textSize="15sp"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:text="[ 🚀 2. OTIMIZAR ]"
+            android:textSize="13sp"
             android:textStyle="bold"
             android:background="@drawable/btn_optimize_selector"
             android:textColor="#FFFFFF"
             android:focusable="true"
             android:focusableInTouchMode="true"
+            android:nextFocusLeft="@+id/btnRootAdmin"
             android:nextFocusRight="@+id/btnReboot"
             android:nextFocusDown="@+id/scrollLogs"
-            android:paddingLeft="20dp"
-            android:paddingRight="20dp"
-            android:layout_marginRight="10dp" />
+            android:layout_marginRight="8dp" />
 
         <Button
             android:id="@+id/btnReboot"
-            android:layout_width="wrap_content"
-            android:layout_height="52dp"
-            android:text="[ 🔄 REINICIAR ]"
-            android:textSize="15sp"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:text="[ 🔄 3. REINICIAR ]"
+            android:textSize="13sp"
             android:textStyle="bold"
             android:background="@drawable/btn_reboot_selector"
             android:textColor="#FFFFFF"
             android:focusable="true"
             android:focusableInTouchMode="true"
             android:nextFocusLeft="@+id/btnOptimize"
-            android:nextFocusDown="@+id/scrollLogs"
-            android:paddingLeft="20dp"
-            android:paddingRight="20dp" />
+            android:nextFocusDown="@+id/scrollLogs" />
     </LinearLayout>
 
     <!-- Terminal Screen Container -->
@@ -95,7 +130,7 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:layout_marginTop="8dp">
+        android:layout_marginTop="6dp">
 
         <TextView
             android:id="@+id/tvGithub"
