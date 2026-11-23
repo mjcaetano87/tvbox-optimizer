@@ -1,0 +1,6 @@
+# Build output and temp files
+app-source/bin/
+app-source/gen/
+*.log
+.DS_Store
+Thumbs.db

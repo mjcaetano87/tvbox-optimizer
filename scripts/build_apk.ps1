@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
-    [string]$AndroidSdkPath = $env:ANDROID_HOME,
-    [string]$JdkPath = $env:JAVA_HOME
+    [string]$AndroidSdkPath = "",
+    [string]$JdkPath = ""
 )
 
 Write-Host "==========================================================" -ForegroundColor Cyan
@@ -13,20 +13,22 @@ $projectRoot = Split-Path -Parent $scriptRoot
 $appDir = Join-Path $projectRoot "app-source"
 $outputApk = Join-Path $projectRoot "TVBOX_Optimizer_IPTV.apk"
 
-# 1. Detect Java JDK
+# 1. Detect Java JDK (Prefer JDK 17 for D8 compatibility)
 if ([string]::IsNullOrWhiteSpace($JdkPath) -or -not (Test-Path $JdkPath)) {
-    $javac = Get-Command "javac" -ErrorAction SilentlyContinue
-    if ($javac) {
-        $JdkPath = Split-Path -Parent (Split-Path -Parent $javac.Source)
-    } else {
-        $possibleJdks = @(
-            "$env:ProgramFiles\Java\jdk*",
-            "$env:ProgramFiles\Microsoft\jdk*",
-            "$env:LOCALAPPDATA\Programs\Common\Java\jdk*"
-        )
-        foreach ($p in $possibleJdks) {
+    $possibleJdks = @(
+        "C:\Program Files\Microsoft\jdk-17.0.21.21-hotspot",
+        "C:\Users\xeda\.gemini\antigravity\scratch\jdk-17",
+        "$env:JAVA_HOME",
+        "$env:ProgramFiles\Java\jdk*",
+        "$env:ProgramFiles\Microsoft\jdk*"
+    )
+    foreach ($p in $possibleJdks) {
+        if (-not [string]::IsNullOrWhiteSpace($p)) {
             $found = Get-Item $p -ErrorAction SilentlyContinue | Select-Object -Last 1
-            if ($found) { $JdkPath = $found.FullName; break }
+            if ($found -and (Test-Path "$($found.FullName)\bin\javac.exe")) {
+                $JdkPath = $found.FullName
+                break
+            }
         }
     }
 }
@@ -39,12 +41,16 @@ if (-not (Test-Path "$JdkPath\bin\javac.exe")) {
 # 2. Detect Android SDK
 if ([string]::IsNullOrWhiteSpace($AndroidSdkPath) -or -not (Test-Path $AndroidSdkPath)) {
     $possibleSdks = @(
+        "C:\Users\xeda\.gemini\antigravity\scratch\android-sdk",
+        "$env:ANDROID_HOME",
         "$env:LOCALAPPDATA\Android\Sdk",
-        "$env:ProgramFiles\Android\Sdk",
-        "$env:ProgramFiles(x86)\Android\android-sdk"
+        "$env:ProgramFiles\Android\Sdk"
     )
     foreach ($p in $possibleSdks) {
-        if (Test-Path $p) { $AndroidSdkPath = $p; break }
+        if (-not [string]::IsNullOrWhiteSpace($p) -and (Test-Path $p)) {
+            $AndroidSdkPath = $p
+            break
+        }
     }
 }
 
@@ -61,6 +67,7 @@ if (-not $androidJar -or -not $aapt -or -not $zipalign -or -not $apksigner) {
 
 Write-Host "[+] Using JDK: $JdkPath" -ForegroundColor Green
 Write-Host "[+] Using Android SDK: $AndroidSdkPath" -ForegroundColor Green
+Write-Host "[+] Using android.jar: $($androidJar.FullName)" -ForegroundColor Green
 
 # Prepare build dirs
 $binDir = Join-Path $appDir "bin"
@@ -79,13 +86,16 @@ $javaSources = @(
     (Get-ChildItem -Path "$genDir" -Recurse -Filter "*.java" | ForEach-Object { $_.FullName }),
     (Get-ChildItem -Path "$appDir\src" -Recurse -Filter "*.java" | ForEach-Object { $_.FullName })
 )
-& "$JdkPath\bin\javac.exe" -encoding UTF-8 -source 1.8 -target 1.8 -bootclasspath $androidJar.FullName -d $binDir $javaSources
+$sourcesFile = Join-Path $binDir "sources.txt"
+$javaSources | Out-File -FilePath $sourcesFile -Encoding ascii
+
+& "$JdkPath\bin\javac.exe" -encoding UTF-8 -source 1.8 -target 1.8 -bootclasspath $androidJar.FullName -d $binDir "@$sourcesFile"
 if ($LASTEXITCODE -ne 0) { Write-Error "javac compilation failed"; exit 1 }
 
 # Step C: Convert bytecode to classes.dex with D8
 Write-Host "[*] [3/5] Converting bytecode to classes.dex (D8)..." -ForegroundColor Cyan
 $classFiles = Get-ChildItem -Path "$binDir" -Recurse -Filter "*.class" | ForEach-Object { $_.FullName }
-& "$JdkPath\bin\java.exe" -cp $d8jar.FullName com.android.tools.r8.D8 --output $binDir $classFiles
+& "$JdkPath\bin\java.exe" -cp $d8jar.FullName com.android.tools.r8.D8 --output $binDir @classFiles
 if ($LASTEXITCODE -ne 0) { Write-Error "D8 dexer failed"; exit 1 }
 
 # Step D: Package APK & add classes.dex and assets (root_bundle)
@@ -120,9 +130,11 @@ if (-not (Test-Path $keystore)) {
 & $apksigner.FullName verify $outputApk
 
 if ($LASTEXITCODE -eq 0 -and (Test-Path $outputApk)) {
+    $apkItem = Get-Item $outputApk
+    $sizeMb = [math]::Round($apkItem.Length / 1MB, 2)
     Write-Host "`n==========================================================" -ForegroundColor Cyan
     Write-Host "   BUILD SUCCESSFUL! (v3.0-ROOT Standalone)               " -ForegroundColor Green
-    Write-Host "   APK Output: $outputApk                                 " -ForegroundColor Green
+    Write-Host "   APK Output: $outputApk ($sizeMb MB)                   " -ForegroundColor Green
     Write-Host "==========================================================" -ForegroundColor Cyan
 } else {
     Write-Error "APK signing verification failed!"
