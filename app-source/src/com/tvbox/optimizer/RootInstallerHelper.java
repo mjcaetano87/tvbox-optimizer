@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Environment;
 import android.os.StrictMode;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -42,15 +43,53 @@ public class RootInstallerHelper {
         return SystemSettingsHelper.isPackageInstalled(context, IROOT_PACKAGE);
     }
 
+    public static File getSafeApkTargetDir(Context context) {
+        try {
+            File downloads = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+            if (downloads != null) {
+                if (!downloads.exists()) downloads.mkdirs();
+                if (downloads.exists() && downloads.canWrite()) {
+                    return downloads;
+                }
+            }
+        } catch (Throwable ignored) {}
+
+        try {
+            File sdDownload = new File(Environment.getExternalStorageDirectory(), "Download");
+            if (!sdDownload.exists()) sdDownload.mkdirs();
+            if (sdDownload.exists() && sdDownload.canWrite()) {
+                return sdDownload;
+            }
+        } catch (Throwable ignored) {}
+
+        try {
+            File extCache = context.getExternalCacheDir();
+            if (extCache != null) {
+                if (!extCache.exists()) extCache.mkdirs();
+                if (extCache.exists() && extCache.canWrite()) {
+                    return extCache;
+                }
+            }
+        } catch (Throwable ignored) {}
+
+        try {
+            File fallback = new File("/sdcard/Download");
+            if (!fallback.exists()) fallback.mkdirs();
+            if (fallback.exists() && fallback.canWrite()) {
+                return fallback;
+            }
+        } catch (Throwable ignored) {}
+
+        File internal = new File(context.getCacheDir(), "root_apks");
+        if (!internal.exists()) internal.mkdirs();
+        return internal;
+    }
+
     public static boolean installRootApp(Context context, String assetPath, String appLabel, LogCallback callback) {
         if (callback != null) callback.log("[RUN] Preparando instalador de Root: " + appLabel + "...");
 
         try {
-            File targetDir = new File(context.getCacheDir(), "root_apks");
-            if (!targetDir.exists()) {
-                targetDir.mkdirs();
-            }
-
+            File targetDir = getSafeApkTargetDir(context);
             String fileName = assetPath.substring(assetPath.lastIndexOf('/') + 1);
             File targetFile = new File(targetDir, fileName);
 
@@ -65,13 +104,21 @@ public class RootInstallerHelper {
             output.close();
             input.close();
 
+            // Permissões globais de leitura no arquivo (evita "Erro ao analisar o pacote" do PackageInstaller)
+            try {
+                targetFile.setReadable(true, false);
+                targetFile.setWritable(true, false);
+                targetFile.setExecutable(true, false);
+                ShellExecutor.runWithTimeout("sh", "chmod 666 \"" + targetFile.getAbsolutePath() + "\"", 1000L);
+            } catch (Throwable ignored) {}
+
             if (callback != null) {
-                callback.log("[OK] " + appLabel + " extraído (" + (targetFile.length() / 1024) + " KB).");
+                callback.log("[OK] " + appLabel + " extraído em: " + targetFile.getAbsolutePath() + " (" + (targetFile.length() / 1024) + " KB).");
             }
 
-            // 1. Se já houver su, tenta instalação silenciosa em segundo plano
+            // 1. Se já houver su, tenta instalação silenciosa em segundo plano via root
             if (ShellExecutor.hasSuBinary()) {
-                if (callback != null) callback.log("[RUN] Tentando instalação silenciosa via Root...");
+                if (callback != null) callback.log("[RUN] Tentando instalação silenciosa via Root (su)...");
                 ShellExecutor.CommandResult suInstall = ShellExecutor.runWithTimeout(
                     "su",
                     "pm install -r -d \"" + targetFile.getAbsolutePath() + "\"",
@@ -83,7 +130,20 @@ public class RootInstallerHelper {
                 }
             }
 
-            // 2. Fallback com StrictMode desabilitado para suportar file:// em qualquer versão do Android
+            // 2. Tenta instalação silenciosa via sh/pm (muito comum em TV Boxes com daemon adb/sh permissivo)
+            try {
+                ShellExecutor.CommandResult shInstall = ShellExecutor.runWithTimeout(
+                    "sh",
+                    "pm install -r -d \"" + targetFile.getAbsolutePath() + "\"",
+                    15000L
+                );
+                if (shInstall.success || shInstall.output.toLowerCase().contains("success")) {
+                    if (callback != null) callback.log("[OK] " + appLabel + " instalado silenciosamente via shell do sistema!");
+                    return true;
+                }
+            } catch (Throwable ignored) {}
+
+            // 3. Fallback com StrictMode desabilitado para suportar file:// em qualquer versão do Android
             try {
                 Method disableDeathOnFileUriExposure = StrictMode.class.getMethod("disableDeathOnFileUriExposure");
                 disableDeathOnFileUriExposure.invoke(null);
@@ -109,7 +169,7 @@ public class RootInstallerHelper {
             boolean opened = SystemSettingsHelper.openActivitySafely(context, intents, null);
             if (opened) {
                 if (callback != null) {
-                    callback.log("[OK] Tela de instalação do " + appLabel + " iniciada. Confirme no controle!");
+                    callback.log("[OK] Instalador do " + appLabel + " iniciado. Confirme no controle!");
                 }
                 return true;
             } else {
